@@ -1,0 +1,7 @@
+# Equivalencias manuales NIE <-> DNI auditables.
+# Cada fila hace que ambos identificadores se traten como la MISMA persona
+# al enlazar propuestas con contratos.
+# Formato: idrh_a;idrh_b;motivo;fecha_alta;usuario
+# Ejemplo (descomentar y adaptar):
+# X5267394A;45332958G;Regularizacion NIE a DNI;2026-07-30;analista
+idrh_a;idrh_b;motivo;fecha_alta;usuario

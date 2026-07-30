@@ -1,0 +1,5 @@
+# Núcleo: solo se necesita openpyxl para escribir/leer XLSX.
+# La lectura de ODS se hace con la stdlib (zipfile + xml), sin dependencias.
+openpyxl>=3.1
+# Desarrollo / pruebas
+pytest>=7.0

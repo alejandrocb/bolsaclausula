@@ -1,0 +1,16 @@
+# Datos con información personal (DNI/NIE en idrh) — NO versionar (RGPD)
+/data/
+# Salidas generadas (workbooks XLSX de recarga y auditoría)
+/salidas/
+*.xlsx
+!tests/fixtures/**/*.xlsx
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+.mypy_cache/
+.coverage

@@ -1,0 +1,145 @@
+# Conciliación de bolsas de días (N91c / S9b1a)
+
+Aplicativo que **recalcula y concilia** la bolsa de días de contratación
+estatutaria de una Gerencia de Servicios Sanitarios entre **PeopleNet** y el
+aplicativo de **Propuestas de contratación**, de forma **reproducible desde el
+corte inicial validado del 02/07/2026**.
+
+Cláusulas prioritarias:
+- **N91c** — exceso o acumulación de tareas / refuerzos.
+- **S9b1a** — sustituciones por IT, vacaciones, permisos, etc.
+
+El resto de cláusulas (`N91a`, `N91b`, `S9b1b`, `S9b1c`…) se tratan como no
+computables/descuadres. El **personal laboral** (plazas cuyo `id_plaza`
+empieza por `L`) conserva su saldo inicial histórico pero **no recibe nuevos
+consumos, devoluciones ni ajustes**.
+
+> **Prioridad absoluta:** trazabilidad, reproducibilidad desde el 02/07/2026 y
+> evitar que una misma propuesta, movimiento o devolución afecte dos veces al
+> saldo.
+
+---
+
+## Instalación
+
+```bash
+pip install -r requirements.txt      # solo openpyxl (+ pytest para pruebas)
+```
+
+No requiere pandas. La lectura de ODS se hace con la librería estándar.
+
+## Datos (no versionados)
+
+Los ficheros fuente contienen **datos personales (DNI/NIE en `idrh`)** y por
+eso están excluidos de git (`.gitignore`). Colócalos así:
+
+```
+data/
+  inicial/     carga_inicial_bolsas_2026-07-02_auditoria.csv
+               carga_inicial_bolsas_2026-07-02_post_control.csv
+               carga_postcontrol_diario_2026-06-30_a_2026-07-02.csv
+  periodicas/  PropuestasContratacion_<fecha>.csv
+               Bolsa_de_dias_<fecha>.xlsx
+               Contratos_PeopleNet_<fecha>.ods
+               MovimientosBolsa_<fecha>.csv
+               SaldoActualPropuestas_<fecha>.csv
+```
+
+## Ejecución
+
+```bash
+python -m bolsa.cli --inicial data/inicial --periodicas data/periodicas --salida salidas
+# o, si no está instalado como paquete:
+PYTHONPATH=src python -m bolsa.cli
+```
+
+Genera en `salidas/`:
+- **`conciliacion_<fecha>.xlsx`** — detalle, resumen por dirección, totales,
+  semáforo y 9 pestañas de auditoría.
+- **`recarga_propuestas_<fecha>.xlsx`** — fichero de recarga completa
+  (ID Plaza, categoría, dirección, cláusula, saldo para cargar; incluye 0).
+
+## Pruebas
+
+```bash
+python -m pytest -q        # 22 pruebas
+```
+
+Cubren: conteo inclusivo y topes de fecha; enlace propuesta↔contrato; y los
+**10 casos críticos** (ver `tests/test_casos_criticos.py`).
+
+---
+
+## Reglas implementadas
+
+| # | Regla | Dónde |
+|---|-------|-------|
+| 1 | Días inclusivos `fin − inicio + 1` (incluye findes/festivos, jornada completa) | `fechas.dias_inclusivos` |
+| 2 | Base aritmética = solo el corte 02/07 (los 3 CSV). SaldoActual **no** es base | `motor.conciliar`, `cargas.inicial` |
+| 3 | `saldo = postcontrol − consumo + devolución ± ajuste_cláusula` | `motor.conciliar` |
+| 4 | Propuestas autorizadas tras el corte consumen aunque no haya contrato | `motor.computa_propuesta` |
+| 5 | La cláusula real de PeopleNet manda sobre la de la propuesta | `modelo.Enlace.clausula_efectiva`, `motor` (ajuste) |
+| 6 | Abiertas/contratos abiertos reservan solo hasta 31/12/2026 | `fechas.fin_computable` |
+| 7 | Contrato cerrado: fin = min(fin propuesta, fin contrato, 31/12/2026) | `fechas.fin_computable` |
+| 8 | Devolución **prevista / registrada / pendiente** diferenciadas | `motor` + `MovimientosBolsa` |
+| 9 | Un contrato puede tener varias propuestas sucesivas (no 1:1) | `enlace.enlaza_propuesta` |
+| 10 | Enlace por IDRH/NIE + solape de fechas + plaza | `enlace`, `equivalencias` |
+| 11 | Contrato N91c/S9b1a sin propuesta = excepción | `enlace.contratos_sin_propuesta` |
+| 12 | Saldo negativo admisible por plaza; validación crítica a nivel Dirección+cláusula | `motor` (resumen) |
+| 13 | Exportaciones completas y solapadas: dedup por id, histórico, recálculo total | `importaciones` |
+
+---
+
+## Diagnóstico de la situación (corte 02/07/2026 → datos 30/07/2026)
+
+- **El corte inicial cuadra al 100 %**: en las 458 filas se cumple
+  `saldo = base − nuevos + recuperados` (0 descuadres aritméticos).
+- **311 propuestas** posteriores al corte consumen saldo; de ellas **113 no
+  tienen contrato PeopleNet localizado** (reserva/compromiso pendiente).
+- **34 contratos** prioritarios PeopleNet **sin propuesta** localizada.
+- **9 contratos** cerraron antes del fin reservado → devolución prevista.
+- **1.161 propuestas** sobre **plazas laborales** (no consumen; se listan como
+  excepción). En el propio corte hay un descuadre histórico: `L134E/DGSG/S9b1a`.
+- **144 excepciones** que requieren comprobación (sin IDRH, sin contrato,
+  cláusula distinta, devolución no registrada).
+
+### Semáforo (días)
+
+| Cláusula | PeopleNet disponible | Reserva pend. sin contrato | Disponible tras compromisos | Estado |
+|----------|---------------------:|---------------------------:|----------------------------:|:------:|
+| **N91c** | 15.992 | 4.159 | **11.833** | 🟢 |
+| **S9b1a**| 50.475 | 5.449 | **45.026** | 🟢 |
+
+Ambas cláusulas mantienen disponibilidad positiva tras descontar las reservas
+comprometidas; ninguna deja PeopleNet a cero/negativo.
+
+### Diferencias cálculo vs Propuestas (para recargar)
+
+| Cláusula | Saldo calculado | Saldo actual Propuestas | Diferencia |
+|----------|----------------:|------------------------:|-----------:|
+| **N91c** | 8.774 | 10.680 | −1.906 |
+| **S9b1a**| 37.158 | 45.935 | −8.777 |
+
+Propuestas muestra **más** saldo que el recalculado: refleja reservas/consumos
+posteriores al corte aún **no mecanizados** en Propuestas. El detalle plaza a
+plaza está en la pestaña `1_Detalle` y las causas en las pestañas de auditoría.
+
+> Estas cifras se recalculan en cada ejecución; son el estado con los ficheros
+> del 30/07/2026.
+
+---
+
+## Documentación
+
+- [`docs/modelo_datos.md`](docs/modelo_datos.md) — modelo de datos, granularidad y diagrama de conciliación.
+- [`docs/formato_cargas.md`](docs/formato_cargas.md) — formato y columnas de cada fichero.
+- [`docs/procedimiento_operativo.md`](docs/procedimiento_operativo.md) — procedimiento para futuras cargas.
+
+## Estructura del proyecto
+
+```
+config/       parametros.yaml, mapeo_columnas.yaml, equivalencias_nie_dni.csv
+src/bolsa/    config, fechas, modelo, cargas/, equivalencias, enlace, motor, exportar, importaciones, cli
+tests/        pruebas de fechas, casos críticos e integración
+docs/         modelo de datos, formatos, procedimiento
+```
