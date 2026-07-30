@@ -92,6 +92,7 @@ class ResultadoConciliacion:
     contratos_sin_propuesta: list[Contrato] = field(default_factory=list)
     enlaces: list[Enlace] = field(default_factory=list)
     avisos_corte: list[str] = field(default_factory=list)
+    validacion: object = None       # ResultadoValidacion (validación cruzada)
 
 
 def _reserva_fin(prop: Propuesta, fecha_limite: date) -> date:
@@ -360,4 +361,10 @@ def conciliar(
             saldo_actual_propuestas=saldo_prop,
             estado=estado,
         ))
+
+    # 8) validación cruzada esperado vs registrado
+    from .validacion import valida_movimientos
+    res.validacion = valida_movimientos(
+        propuestas, movimientos, res.detalle_propuestas, fecha_limite, config
+    )
     return res

@@ -102,6 +102,13 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
               f"disponible_tras_compromisos={s['disponible_tras_compromisos']}  "
               f"reserva_pend_sin_contrato={s['reserva_pendiente_sin_contrato']}",
               file=sys.stderr)
+    if res.validacion is not None:
+        v = res.validacion.resumen
+        print("\n=== VALIDACIÓN MOVIMIENTOS (esperado vs registrado) ===", file=sys.stderr)
+        print(f"  cobertura: {v['con_movimiento_registrado']}/{v['propuestas_que_computan']}"
+              f" ({v['cobertura_pct']}%)  anómalos={v['movimientos_anomalos']}"
+              f"  con diferencia={v['propuestas_con_diferencia']}", file=sys.stderr)
+
     print(f"\nConciliación: {ruta_conc}", file=sys.stderr)
     print(f"Recarga:      {ruta_rec}", file=sys.stderr)
     return {"conciliacion": ruta_conc, "recarga": ruta_rec, "resultado": res}

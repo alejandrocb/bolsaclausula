@@ -228,6 +228,28 @@ def exporta_conciliacion(
             exc.append(row)
     _hoja(wb, "A9_Excepciones", cols_prop + [("incidencias", "Incidencias")], exc)
 
+    # A10 Validación esperado vs registrado (por propuesta)
+    val = res.validacion
+    if val is not None:
+        _hoja(wb, "A10_Esperado_vs_Registrado", [
+            ("propuesta_id", "Propuesta"), ("idrh", "IDRH"), ("id_plaza", "ID Plaza"),
+            ("direccion_codigo", "Dir."), ("clausula", "Cláusula"),
+            ("computa", "¿Computa?"), ("esperado_con_tope", "Esperado (tope 31/12)"),
+            ("esperado_sin_tope", "Esperado (sin tope)"),
+            ("registrado_nueva", "Registrado (NUEVA)"), ("diferencia", "Diferencia"),
+            ("devolucion_prevista", "Devol. prevista"),
+            ("devolucion_registrada", "Devol. registrada"),
+            ("devolucion_pendiente", "Devol. pendiente"), ("nota", "Nota"),
+        ], [vars(f) for f in val.por_propuesta])
+
+        # A11 Movimientos anómalos
+        _hoja(wb, "A11_Movimientos_anomalos", [
+            ("movimiento_id", "Movimiento"), ("propuesta_id", "Propuesta"),
+            ("tipo_movimiento", "Tipo"), ("importe", "Importe"),
+            ("id_plaza", "ID Plaza"), ("direccion_codigo", "Dir."),
+            ("clausula", "Cláusula"), ("incidencias", "Incidencias"),
+        ], [vars(a) for a in val.anomalos])
+
     Path(ruta).parent.mkdir(parents=True, exist_ok=True)
     wb.save(ruta)
     return Path(ruta)

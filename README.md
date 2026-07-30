@@ -62,11 +62,15 @@ Genera en `salidas/`:
 ## Pruebas
 
 ```bash
-python -m pytest -q        # 22 pruebas
+python -m pytest -q        # 27 pruebas
 ```
 
-Cubren: conteo inclusivo y topes de fecha; enlace propuesta↔contrato; y los
-**10 casos críticos** (ver `tests/test_casos_criticos.py`).
+Cubren: conteo inclusivo y topes de fecha; enlace propuesta↔contrato; los
+**10 casos críticos** (ver `tests/test_casos_criticos.py`); y la validación
+cruzada esperado vs registrado (`tests/test_validacion.py`).
+
+En **Windows** puedes usar `run.bat` (crea el entorno, instala e ejecuta de una
+vez).
 
 ---
 
@@ -102,6 +106,10 @@ Cubren: conteo inclusivo y topes de fecha; enlace propuesta↔contrato; y los
   excepción). En el propio corte hay un descuadre histórico: `L134E/DGSG/S9b1a`.
 - **144 excepciones** que requieren comprobación (sin IDRH, sin contrato,
   cláusula distinta, devolución no registrada).
+- **Validación cruzada** (esperado vs `MovimientosBolsa`): 0 movimientos
+  anómalos y 9 propuestas con diferencia, **todas explicadas** por el recorte a
+  31/12/2026 (lo registrado coincide con el periodo completo de la propuesta).
+  Pestañas `A10_Esperado_vs_Registrado` y `A11_Movimientos_anomalos`.
 
 ### Semáforo (días)
 
