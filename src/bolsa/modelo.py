@@ -130,6 +130,7 @@ class Enlace:
     """Resultado de enlazar una propuesta con (0..n) contratos PeopleNet."""
     propuesta: Propuesta
     contratos: list[Contrato] = field(default_factory=list)
+    plaza_distinta: bool = False    # el contrato elegido está en otra plaza
 
     @property
     def enlazada(self) -> bool:

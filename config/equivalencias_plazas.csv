@@ -1,0 +1,8 @@
+# Equivalencias de plaza/categoría auditables para el ENLACE propuesta<->contrato.
+# Dos códigos en la misma equivalencia se tratan como la MISMA categoría al
+# enlazar (solo para el enlace; NO cambian la plaza en la que se contabiliza).
+# Úsalo cuando contrato y propuesta usan códigos distintos para lo mismo
+# (p.ej. Enfermera/o E071A2 y ATS/DUE SNU E073A2).
+# Formato: id_plaza_a;id_plaza_b;motivo;fecha_alta;usuario
+id_plaza_a;id_plaza_b;motivo;fecha_alta;usuario
+E071A2;E073A2;Enfermera/o y ATS/DUE SNU (misma categoría);2026-07-31;analista

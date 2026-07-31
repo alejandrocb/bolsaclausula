@@ -64,6 +64,7 @@ class DetallePropuesta:
     direccion_efectiva: str = ""       # división(es) reales del contrato (por tramos)
     direccion_distinta: bool = False
     dias_sin_tramo: int = 0            # días del periodo sin GFH que los cubra
+    plaza_distinta: bool = False       # enlazada a contrato de plaza equivalente
 
 
 @dataclass
@@ -185,6 +186,7 @@ def computa_propuesta(
         computa=False,
         sub_estado=prop.sub_estado,
         direccion_declarada=prop.direccion_codigo,
+        plaza_distinta=enlace.plaza_distinta,
     )
 
     # --- ¿computa en el cálculo? ---
@@ -230,6 +232,7 @@ def conciliar(
     saldo_actual: list[SaldoActual],
     bolsa_peoplenet: list[BolsaPeopleNet],
     equivalencias: Optional[Equivalencias] = None,
+    plazas_equiv: Optional[Equivalencias] = None,
     config=CONFIG,
 ) -> ResultadoConciliacion:
     fecha_corte = parse_fecha(config.fecha_corte)
@@ -248,7 +251,8 @@ def conciliar(
             )
 
     # 1) enlaces propuesta <-> contrato
-    enlaces = _enlace.enlaza_todas(propuestas, contratos, equivalencias, fecha_limite)
+    enlaces = _enlace.enlaza_todas(
+        propuestas, contratos, equivalencias, fecha_limite, plazas_equiv)
     res.enlaces = enlaces
     res.contratos_sin_propuesta = _enlace.contratos_sin_propuesta(
         enlaces, contratos, prioritarias

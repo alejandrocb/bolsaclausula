@@ -23,6 +23,10 @@ acumulan.
 3. **Registrar equivalencias NIE/DNI** nuevas en
    `config/equivalencias_nie_dni.csv` (`idrh_a;idrh_b;motivo;fecha_alta;usuario`).
    Quedan auditadas en la pestaña `A8b`.
+   - **Equivalencias de plaza** (cuando contrato y propuesta usan códigos
+     distintos para la misma categoría, p.ej. `E071A2`/`E073A2`) en
+     `config/equivalencias_plazas.csv`. Solo enlaza los pares declarados; no
+     enlaza plazas no relacionadas. Los enlaces así se marcan en `A9`.
 
 3bis. **Política de reserva** (`parametros.yaml → sub_estados_reserva_firme`):
    una propuesta **enlazada a contrato consume siempre** (mecanizada); una

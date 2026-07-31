@@ -258,6 +258,8 @@ def exporta_conciliacion(
             problemas.append("sin contrato localizado")
         if d.computa and d.clausula_distinta:
             problemas.append("cláusula distinta")
+        if d.computa and d.plaza_distinta:
+            problemas.append("enlace por plaza equivalente")
         if d.computa and d.direccion_distinta:
             problemas.append("dirección distinta (contrato manda)")
         if d.computa and d.dias_sin_tramo > 0:
