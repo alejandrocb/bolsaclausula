@@ -13,7 +13,7 @@ from ..modelo import (
     SaldoActual,
     TramoGFH,
 )
-from . import dicts_desde_filas, entero, lee_csv, lee_tabla
+from . import dicts_desde_filas, entero, limpio, lee_csv, lee_tabla
 
 
 def carga_propuestas(ruta, config=CONFIG) -> list[Propuesta]:
@@ -25,8 +25,8 @@ def carga_propuestas(ruta, config=CONFIG) -> list[Propuesta]:
         out.append(Propuesta(
             propuesta_id=r[col["propuesta_id"]].strip(),
             id_plaza=r[col["categoria_codigo"]].strip(),
-            direccion_codigo=r[col["direccion_codigo"]].strip(),
-            clausula=r[col["clausula"]].strip(),
+            direccion_codigo=limpio(r[col["direccion_codigo"]]),
+            clausula=limpio(r[col["clausula"]]),
             estado=r[col["estado"]].strip(),
             sub_estado=r.get(col["sub_estado"], "").strip(),
             fecha_autorizacion=parse_fecha(r.get(col["fecha_autorizacion"]), fmt),
