@@ -60,7 +60,8 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
                   or _busca(per, "Contratos*PeopleNet*.ods"))
     ruta_mov = _busca(per, "MovimientosBolsa*.csv")
     ruta_saldo = _busca(per, "SaldoActualPropuestas*.csv")
-    ruta_bolsa = _busca(per, "Bolsa*d*as*.xlsx")
+    # acepta "Bolsa de días…", "Bolsa_de_dias…" y "Bolsa_PeopleNet_a_…"
+    ruta_bolsa = (_busca_op(per, "Bolsa*.xlsx") or _busca(per, "Bolsa*d*as*.xlsx"))
     ruta_div = (_busca_op(maes, "Divisiones*.xlsx")
                 or _busca_op(per, "Divisiones*.xlsx"))
 
