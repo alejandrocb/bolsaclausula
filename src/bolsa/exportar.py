@@ -50,6 +50,7 @@ def _fd(f) -> dict:
         clausula=f.clausula, saldo_base=f.saldo_base,
         control_inicial_neto=f.control_inicial_neto, saldo_postcontrol=f.saldo_postcontrol,
         consumo_posterior=f.consumo_posterior, devolucion_posterior=f.devolucion_posterior,
+        devolucion_cierre=f.devolucion_cierre,
         ajuste_peoplenet=f.ajuste_peoplenet, reserva_pendiente=f.reserva_pendiente,
         saldo_calculado=f.saldo_calculado, saldo_actual_propuestas=f.saldo_actual_propuestas,
         diferencia=f.diferencia, nota=f.nota,
@@ -76,6 +77,7 @@ def exporta_conciliacion(
         ("saldo_postcontrol", "Saldo postcontrol"),
         ("consumo_posterior", "Consumo posterior"),
         ("devolucion_posterior", "Devolución posterior"),
+        ("devolucion_cierre", "Devolución por cierre (calc.)"),
         ("ajuste_peoplenet", "Ajuste PeopleNet (cláu/dir)"),
         ("reserva_pendiente", "Reserva pendiente"),
         ("saldo_calculado", "Saldo calculado (recargar)"),
@@ -88,6 +90,7 @@ def exporta_conciliacion(
         ("direccion_codigo", "Dir."), ("direccion_nombre", "Dirección"),
         ("clausula", "Cláusula"), ("saldo_postcontrol", "Saldo postcontrol"),
         ("consumo_posterior", "Consumo"), ("devolucion_posterior", "Devolución"),
+        ("devolucion_cierre", "Devol. cierre"),
         ("ajuste_peoplenet", "Ajuste PeopleNet"), ("reserva_pendiente", "Reserva pend."),
         ("saldo_calculado", "Saldo calculado"),
         ("saldo_actual_propuestas", "Saldo Propuestas"), ("diferencia", "Diferencia"),
@@ -97,6 +100,7 @@ def exporta_conciliacion(
     _hoja(wb, "3_Totales_Clausula", [
         ("clausula", "Cláusula"), ("saldo_postcontrol", "Saldo postcontrol"),
         ("consumo_posterior", "Consumo"), ("devolucion_posterior", "Devolución"),
+        ("devolucion_cierre", "Devol. cierre"),
         ("ajuste_peoplenet", "Ajuste PeopleNet"), ("reserva_pendiente", "Reserva pend."),
         ("saldo_calculado", "Saldo calculado"),
         ("saldo_actual_propuestas", "Saldo Propuestas"),
@@ -196,6 +200,15 @@ def exporta_conciliacion(
                and d.devolucion_prevista > 0]
     _hoja(wb, "A5_Cierres_devoluciones", cols_prop, cierres)
 
+    _hoja(wb, "A5b_Devoluciones_cierre", [
+        ("propuesta_id", "Propuesta"), ("idrh", "IDRH"), ("id_plaza", "ID Plaza"),
+        ("direccion", "Dirección"), ("clausula", "Cláusula"),
+        ("contrato_periodo", "Nº periodo"), ("contrato_fin", "Cierre contrato"),
+        ("reservado_hasta", "Reservado hasta"), ("dias_devueltos", "Días devueltos (calc.)"),
+        ("devolucion_registrada", "Devol. registrada (mov.)"),
+        ("devolucion_pendiente", "Devol. pendiente"),
+    ], res.devoluciones_cierre)
+
     con_mov = [dp(d) for d in dps if d.movimiento_importe != 0
                or d.devolucion_registrada != 0]
     _hoja(wb, "A6_Movimientos_por_propuesta", cols_prop, con_mov)
@@ -245,6 +258,8 @@ def exporta_conciliacion(
             problemas.append("sin contrato localizado")
         if d.computa and d.clausula_distinta:
             problemas.append("cláusula distinta")
+        if d.computa and d.plaza_distinta:
+            problemas.append("enlace por plaza equivalente")
         if d.computa and d.direccion_distinta:
             problemas.append("dirección distinta (contrato manda)")
         if d.computa and d.dias_sin_tramo > 0:

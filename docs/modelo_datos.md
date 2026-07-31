@@ -95,8 +95,18 @@ si sin contrato:
     reserva_pendiente[decl]+= consumo_neto
 
 saldo_calculado = saldo_postcontrol − consumo_posterior
-                + devolucion_posterior + ajuste_peoplenet
+                + devolucion_posterior + devolucion_cierre + ajuste_peoplenet
 ```
+
+**Devolución por cierre (reservas pre-corte).** Las propuestas autorizadas
+**antes** del 02/07 tienen su reserva (hasta 31/12) ya metida en la base
+postcontrol. Si su contrato **cierra antes de 31/12**, el tramo
+`cierre+1 → 31/12` debe **devolverse**. Se calcula **una vez por contrato**
+`(idrh, núm_periodo)` sobre las propuestas pre-corte, se anota en la clave
+declarada (revierte la base) y se muestra diferenciada (`A5b_Devoluciones_cierre`,
+calculada vs registrada). Cuando existe una **renovación** (propuesta posterior
+sin contrato que cubre ese mismo tramo), su reserva pendiente compensa la
+devolución (neto 0); si no la hay, el saldo se libera.
 
 ## 5b. Dirección real por GFH (el contrato manda)
 

@@ -89,6 +89,10 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
     bolsa = carga_bolsa_peoplenet(ruta_bolsa)
 
     equivalencias = Equivalencias.desde_csv(equivalencias_csv)
+    from .config import DIR_CONFIG
+    plazas_equiv = Equivalencias.desde_csv(
+        DIR_CONFIG / "equivalencias_plazas.csv",
+        col_a="id_plaza_a", col_b="id_plaza_b")
 
     importaciones = [
         registra(ruta_aud, "inicial_auditoria", len(saldo_inicial)),
@@ -103,7 +107,7 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
 
     print("Conciliando…", file=sys.stderr)
     res = conciliar(saldo_inicial, propuestas, contratos, movimientos,
-                    saldo_actual, bolsa, equivalencias)
+                    saldo_actual, bolsa, equivalencias, plazas_equiv)
 
     sello = datetime.now().strftime("%Y%m%d")
     dir_salida = Path(dir_salida)
@@ -113,6 +117,12 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
     exporta_recarga(res, ruta_rec)
 
     # resumen a consola
+    if res.devoluciones_cierre:
+        tot = sum(c["dias_devueltos"] for c in res.devoluciones_cierre)
+        print(f"\nDevoluciones por cierre de contrato (calculadas): "
+              f"{len(res.devoluciones_cierre)} contratos, {tot} días "
+              f"(ver pestaña A5b).", file=sys.stderr)
+
     print("\n=== SEMÁFORO ===", file=sys.stderr)
     for s in res.semaforo:
         print(f"  {s['clausula']}: {s['estado']}  "

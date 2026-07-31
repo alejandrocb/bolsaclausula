@@ -28,20 +28,31 @@ def enlaza_propuesta(
     idx_contratos: dict[str, list[Contrato]],
     equivalencias: Equivalencias,
     fecha_limite: date,
+    plazas_equiv: Equivalencias | None = None,
 ) -> Enlace:
     """Enlaza una propuesta con los contratos compatibles.
 
-    Criterio: mismo idrh canónico + misma plaza + solape de fechas.
-    Devuelve el enlace con los contratos candidatos ordenados por proximidad
-    de la fecha de inicio (el más ajustado primero -> manda su cláusula).
+    Criterio (regla 10): mismo idrh canónico + **misma plaza (o plaza
+    equivalente)** + solape de fechas. Las equivalencias de plaza permiten
+    tratar dos códigos como la misma categoría (p.ej. E071A2 ↔ E073A2), de forma
+    explícita y auditable, sin sobre-enlazar plazas no relacionadas.
+    Los candidatos se ordenan por proximidad de la fecha de inicio.
     """
     enlace = Enlace(propuesta=prop)
     if not prop.idrh:
         return enlace  # sin idrh no se puede enlazar (excepción)
     canon = equivalencias.canonico(prop.idrh)
+
+    def plaza_compatible(c: Contrato) -> bool:
+        if not c.id_plaza or not prop.id_plaza:
+            return True
+        if c.id_plaza == prop.id_plaza:
+            return True
+        return bool(plazas_equiv and plazas_equiv.mismos(c.id_plaza, prop.id_plaza))
+
     candidatos = []
     for c in idx_contratos.get(canon, []):
-        if c.id_plaza and prop.id_plaza and c.id_plaza != prop.id_plaza:
+        if not plaza_compatible(c):
             continue
         if not solapan(prop.fecha_inicio, prop.fecha_fin,
                        c.fecha_inicio, c.fecha_fin, fecha_limite):
@@ -55,6 +66,10 @@ def enlaza_propuesta(
 
     candidatos.sort(key=distancia)
     enlace.contratos = candidatos
+    enlace.plaza_distinta = bool(
+        candidatos and candidatos[0].id_plaza and prop.id_plaza
+        and candidatos[0].id_plaza != prop.id_plaza
+    )
     return enlace
 
 
@@ -63,10 +78,11 @@ def enlaza_todas(
     contratos: list[Contrato],
     equivalencias: Equivalencias,
     fecha_limite: date,
+    plazas_equiv: Equivalencias | None = None,
 ) -> list[Enlace]:
     idx = indexa_contratos(contratos, equivalencias)
     return [
-        enlaza_propuesta(p, idx, equivalencias, fecha_limite)
+        enlaza_propuesta(p, idx, equivalencias, fecha_limite, plazas_equiv)
         for p in propuestas
     ]
 
