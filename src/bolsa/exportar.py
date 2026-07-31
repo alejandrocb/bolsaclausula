@@ -107,21 +107,23 @@ def exporta_conciliacion(
     ], res.totales_clausula)
 
     # 4) Semáforo
-    ws = _hoja(wb, "4_Semaforo", [
+    cols_sem = [
         ("clausula", "Cláusula"),
         ("bolsa_oficial_contratacion", "PeopleNet contratación"),
-        ("bolsa_oficial_usados", "PeopleNet usados"),
+        ("bolsa_oficial_usados", "PeopleNet usados (contratos)"),
         ("disponible_peoplenet", "Disponible PeopleNet"),
-        ("reserva_pendiente_sin_contrato", "Reserva pend. sin contrato"),
-        ("disponible_tras_compromisos", "Disponible tras compromisos"),
-        ("saldo_calculado", "Saldo calculado"),
-        ("diferencia_calc_vs_peoplenet", "Dif. cálculo vs PeopleNet"),
+        ("reserva_pendiente_sin_contrato", "Reservas sin contrato"),
+        ("comprometido_total", "Comprometido total (usados+reservas)"),
+        ("disponible_tras_compromisos", "Margen tras compromisos"),
+        ("saldo_calculado_recarga", "Saldo recarga (por plaza)"),
         ("saldo_actual_propuestas", "Saldo actual Propuestas"),
         ("estado", "ESTADO"),
-    ], res.semaforo)
+    ]
+    ws = _hoja(wb, "4_Semaforo", cols_sem, res.semaforo)
+    col_estado = len(cols_sem)
     for i, s in enumerate(res.semaforo, start=2):
-        ws.cell(row=i, column=10).fill = _COLOR.get(s["estado"], _COLOR["SIN DATOS"])
-        ws.cell(row=i, column=10).font = Font(bold=True)
+        ws.cell(row=i, column=col_estado).fill = _COLOR.get(s["estado"], _COLOR["SIN DATOS"])
+        ws.cell(row=i, column=col_estado).font = Font(bold=True)
 
     # --- Auditoría ---
     dps = res.detalle_propuestas

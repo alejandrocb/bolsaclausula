@@ -464,16 +464,18 @@ def conciliar(
                 estado = "AMBAR"
             else:
                 estado = "VERDE"
+        usados = b.dias_usados if b else None
+        comprometido_total = (
+            usados + reserva_sin_contrato if usados is not None else None)
         res.semaforo.append(dict(
             clausula=cl,
             bolsa_oficial_contratacion=(b.dias_contratacion if b else None),
-            bolsa_oficial_usados=(b.dias_usados if b else None),
+            bolsa_oficial_usados=usados,
             disponible_peoplenet=disp_oficial,
             reserva_pendiente_sin_contrato=reserva_sin_contrato,
-            disponible_tras_compromisos=disp_tras,
-            saldo_calculado=saldo_calc,
-            diferencia_calc_vs_peoplenet=(
-                saldo_calc - disp_oficial if disp_oficial is not None else None),
+            comprometido_total=comprometido_total,       # usados (contratos) + reservas
+            disponible_tras_compromisos=disp_tras,        # = contratación − comprometido_total
+            saldo_calculado_recarga=saldo_calc,           # distribución por plaza (recarga)
             saldo_actual_propuestas=saldo_prop,
             estado=estado,
         ))
