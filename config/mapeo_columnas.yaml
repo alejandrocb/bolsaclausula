@@ -1,0 +1,118 @@
+# Mapeo de columnas de cada fichero -> nombres internos canónicos.
+# Si una exportación cambia el nombre/orden de columnas, se ajusta AQUÍ,
+# sin tocar el código. Cada bloque incluye también el delimitador.
+
+inicial_auditoria:
+  delimitador: ";"
+  columnas:
+    periodo: periodo
+    id_plaza: id_plaza
+    descripcion_categoria: descripcion_categoria
+    direccion_id: direccion_id
+    direccion_codigo: direccion_codigo
+    direccion_nombre: direccion_nombre
+    clausula: clausula
+    saldo: saldo
+    categoria_ids_maestro: categoria_ids_maestro
+    saldo_base_02_07: saldo_base_02_07
+    nuevos_control: nuevos_control
+    recuperados_control: recuperados_control
+    origen_ajustes: origen_ajustes
+
+inicial_postcontrol:
+  delimitador: ";"
+  columnas:
+    id_plaza: id_plaza
+    direccion_codigo: direccion_codigo
+    clausula: clausula
+    saldo: saldo
+
+inicial_diario:
+  delimitador: ";"
+  columnas:
+    fecha_registro: fecha_registro
+    fila_origen: fila_origen
+    propuesta_id: propuesta_id
+    direccion_codigo: direccion_codigo
+    id_plaza: id_plaza
+    clausula: clausula
+    dias_nuevos: dias_nuevos
+    dias_recuperados: dias_recuperados
+    clasificacion: clasificacion
+
+propuestas:
+  delimitador: "|"
+  formato_fecha: "%Y-%m-%d %H:%M:%S"
+  columnas:
+    propuesta_id: propuesta_id
+    categoria_codigo: categoria_codigo
+    direccion_codigo: direccion_codigo
+    clausula: clausula
+    estado: estado
+    sub_estado: sub_estado
+    fecha_autorizacion: fecha_autorizacion
+    fecha_inicio: fecha_inicio_contrato
+    fecha_fin: fecha_fin_contrato
+    idrh: idrh
+    propuesta_original_id: propuesta_original_id
+    propuesta_sustituta_id: propuesta_sustituta_id
+
+contratos:
+  hoja: "Query"
+  formato_fecha: "%d/%m/%Y"
+  columnas:
+    idrh: "ID RH"
+    num_periodo: "Núm. periodo"
+    fecha_inicio: "Inicio Plaza"
+    fecha_fin: "Fin Plaza"
+    clausula: "Id. Cláusula"
+    motivo_inicio: "Motivo inicio"
+    id_plaza: "ID Plaza"
+    # tramos GFH (una fila por tramo; se agrupan por idrh+num_periodo)
+    gfh_inicio: "Inicio GFH"
+    gfh_fin: "Fin GFH"
+    gfh_id: "id. GFH1"
+    gfh_nombre: "Nombre GFH"
+
+# Maestro (ID Plaza, ID GFH) -> División asignada (dirección real)
+divisiones:
+  hoja: "Hoja1"
+  columnas:
+    id_plaza: "ID Plaza"
+    gfh_id: "ID GFH"
+    division: "División asignada"
+
+movimientos:
+  delimitador: "|"
+  formato_fecha: "%Y-%m-%d %H:%M:%S"
+  columnas:
+    movimiento_id: movimiento_id
+    bolsa_dias_id: bolsa_dias_id
+    propuesta_id: propuesta_id
+    fecha_movimiento: fecha_movimiento
+    tipo_movimiento: tipo_movimiento
+    importe: importe_movimiento
+    categoria_codigo: categoria_codigo
+    direccion_codigo: direccion_codigo
+    clausula: clausula
+
+saldo_actual:
+  delimitador: "|"
+  columnas:
+    bolsa_dias_id: bolsa_dias_id
+    direccion_codigo: direccion_codigo
+    categoria_id: categoria_id
+    categoria_codigo: categoria_codigo
+    clausula: clausula
+    bolsa_dias_inicial: bolsa_dias_inicial
+    bolsa_dias_restante: bolsa_dias_restante
+
+bolsa_peoplenet:
+  hoja: "Export"
+  fila_cabecera: 2   # 1-indexado; la fila 1 es el título
+  columnas:
+    anio: "Año"
+    clausula: "Id. Tipo Nom. Cláusula."
+    dias_contratacion: "Días contratación"
+    dias_usados: "Días Usados"
+    comentario: "Comentario"

@@ -1,0 +1,35 @@
+# Parámetros de negocio de la conciliación.
+# Se cargan con un mini-parser YAML propio (config.py), sin dependencias externas.
+
+# Fecha del corte inicial validado. Es la ÚNICA base aritmética.
+fecha_corte: "2026-07-02"
+
+# Tope de reserva/consumo para propuestas y contratos abiertos.
+fecha_limite: "2026-12-31"
+
+# Cláusulas que SÍ consumen estas bolsas.
+clausulas_prioritarias:
+  - "N91c"
+  - "S9b1a"
+
+# Prefijo de id_plaza que identifica personal laboral (no consume bolsas).
+prefijo_laboral: "L"
+
+# Estados de propuesta que representan un compromiso vivo (reserva/consumo).
+estados_vivos:
+  - "APROBADA"
+
+# Estados de propuesta que liberan/no consumen.
+estados_anulados:
+  - "ANULADA"
+  - "DENEGADA"
+  - "CANCELADA"
+  - "DEVUELTA_AL_GESTOR"
+
+# Tipos de movimiento en MovimientosBolsa y su signo esperado.
+# (informativo; el signo real ya viene en importe_movimiento)
+movimientos_consumo:
+  - "NUEVA_SOLICITUD"
+movimientos_devolucion:
+  - "DEVOLUCION_SOLICITUD"
+  - "ANULACION_SOLICITUD"
