@@ -24,6 +24,12 @@ acumulan.
    `config/equivalencias_nie_dni.csv` (`idrh_a;idrh_b;motivo;fecha_alta;usuario`).
    Quedan auditadas en la pestaña `A8b`.
 
+3bis. **Política de reserva** (`parametros.yaml → sub_estados_reserva_firme`):
+   una propuesta **enlazada a contrato consume siempre** (mecanizada); una
+   propuesta **sin contrato** solo reserva si su `sub_estado` está en esa lista.
+   Endurece o relaja según qué aprobaciones consideres un compromiso firme. El
+   desglose está en `A2b_Reserva_por_subestado`.
+
 4. **Ejecutar**:
    ```bash
    PYTHONPATH=src python -m bolsa.cli
