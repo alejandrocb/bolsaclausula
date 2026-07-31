@@ -133,6 +133,7 @@ def exporta_conciliacion(
             devolucion_registrada=d.devolucion_registrada,
             devolucion_pendiente=d.devolucion_pendiente,
             movimiento_importe=d.movimiento_importe, mecanizada=d.mecanizada,
+            sub_estado=d.sub_estado,
             enlazada=d.enlazada, contrato_cerrado=d.contrato_cerrado,
             direccion_declarada=d.direccion_declarada,
             direccion_efectiva=d.direccion_efectiva,
@@ -142,6 +143,7 @@ def exporta_conciliacion(
 
     cols_prop = [
         ("propuesta_id", "Propuesta"), ("idrh", "IDRH"), ("id_plaza", "ID Plaza"),
+        ("sub_estado", "Sub_estado"),
         ("direccion_declarada", "Dir. prop."), ("direccion_efectiva", "Dir. real"),
         ("clausula_declarada", "Cláusula prop."),
         ("clausula_efectiva", "Cláusula real"), ("fecha_inicio", "Inicio"),
@@ -159,6 +161,20 @@ def exporta_conciliacion(
 
     mec_sin = [dp(d) for d in dps if d.computa and d.mecanizada and not d.enlazada]
     _hoja(wb, "A2_Mecanizadas_sin_contrato", cols_prop, mec_sin)
+
+    # Resumen de la reserva pendiente (sin contrato) por sub_estado
+    from collections import defaultdict as _dd
+    resu = _dd(lambda: {"n": 0, "dias": 0})
+    for d in dps:
+        if d.computa and not d.enlazada:
+            k = (d.clausula_efectiva, d.sub_estado or "(vacío)")
+            resu[k]["n"] += 1
+            resu[k]["dias"] += d.consumo_neto
+    _hoja(wb, "A2b_Reserva_por_subestado", [
+        ("clausula", "Cláusula"), ("sub_estado", "Sub_estado"),
+        ("n", "Nº propuestas"), ("dias", "Días netos"),
+    ], [dict(clausula=k[0], sub_estado=k[1], n=v["n"], dias=v["dias"])
+        for k, v in sorted(resu.items())])
 
     distinta = [dp(d) for d in dps if d.computa and d.clausula_distinta]
     _hoja(wb, "A3_Clausula_distinta", cols_prop, distinta)

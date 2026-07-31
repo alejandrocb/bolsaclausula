@@ -55,6 +55,7 @@ class DetallePropuesta:
     laboral: bool
     mecanizada: bool
     computa: bool
+    sub_estado: str = ""
     motivo_no_computa: str = ""
     devolucion_registrada: int = 0
     devolucion_pendiente: int = 0
@@ -180,6 +181,7 @@ def computa_propuesta(
         laboral=laboral,
         mecanizada=mecanizada,
         computa=False,
+        sub_estado=prop.sub_estado,
         direccion_declarada=prop.direccion_codigo,
     )
 
@@ -197,6 +199,9 @@ def computa_propuesta(
         det.motivo_no_computa = "cláusula no prioritaria"
     elif prop.fecha_inicio is None:
         det.motivo_no_computa = "sin fecha_inicio"
+    elif not enlace.enlazada and not config.es_reserva_firme(prop.sub_estado):
+        # sin contrato y sin aprobación firme -> no reserva
+        det.motivo_no_computa = f"reserva no firme (sub_estado {prop.sub_estado})"
     else:
         det.computa = True
     return det
