@@ -79,22 +79,45 @@ fin_computable       = min(fin_propuesta, fin_contrato_si_cerrado, 31/12/2026)
 devolucion_prevista  = consumo_bruto − consumo_neto
 ```
 
-Acumulación (el consumo/devolución se anotan en la **cláusula declarada**; si el
-contrato tiene otra cláusula, `ajuste_clausula` mueve el **neto** de la
-declarada a la efectiva, con **suma cero** entre ambas):
+Acumulación (el consumo/devolución se anotan en la clave **declarada** de la
+propuesta; si hay contrato, `ajuste_peoplenet` mueve el **neto** a la cláusula y
+dirección **reales**, repartido por tramos GFH, con **suma cero por plaza**):
 
 ```
 consumo_posterior[decl]   += consumo_bruto
 devolucion_posterior[decl]+= devolucion_prevista
-si cláusula distinta:
-    ajuste_clausula[decl]  += consumo_neto      # se "devuelve" a la declarada
-    ajuste_clausula[efec]  -= consumo_neto      # se consume en la efectiva
+si enlazada (contrato manda):
+    ajuste_peoplenet[decl]           += consumo_neto        # sale de la declarada
+    para cada tramo (division, dias):
+        ajuste_peoplenet[(plaza,division,cláusula_real)] -= dias
+    dias_sin_tramo -> a la dirección de la propuesta (cláusula real)
 si sin contrato:
-    reserva_pendiente[efec]+= consumo_neto
+    reserva_pendiente[decl]+= consumo_neto
 
 saldo_calculado = saldo_postcontrol − consumo_posterior
-                + devolucion_posterior + ajuste_clausula
+                + devolucion_posterior + ajuste_peoplenet
 ```
+
+## 5b. Dirección real por GFH (el contrato manda)
+
+El fichero de Contratos **no trae la dirección**; la dirección se determina por
+**`(GFH, ID Plaza)`** mediante el maestro de Divisiones. Un contrato
+(`idrh, núm_periodo`) puede tener **varios tramos GFH** con sus fechas
+(`Inicio GFH`/`Fin GFH`), y cada tramo puede caer en una **dirección distinta**.
+
+Regla: **la cláusula y la dirección reales del contrato mandan** sobre la
+propuesta. El consumo neto de una propuesta enlazada se **reparte por tramos**:
+para cada tramo, los días de solape con `[inicio, fin_computable]` se imputan a
+la división de ese tramo.
+
+- El `ajuste_peoplenet` relocaliza el neto desde la clave declarada
+  `(id_plaza, dir_propuesta, cláusula_propuesta)` hacia las claves reales
+  `(id_plaza, división_tramo, cláusula_contrato)`, con **suma cero por plaza**.
+- Días del periodo **sin tramo GFH** que los cubra → se quedan en la dirección
+  de la propuesta y se marcan como excepción (`dias_sin_tramo`).
+- Divisiones no presentes en el corte (p.ej. `FORM`) generan fila nueva marcada.
+
+Auditoría: `A3b_Direccion_distinta` (dirección real ≠ propuesta o días sin tramo).
 
 ## 6. Devoluciones: tres estados diferenciados (regla 8)
 

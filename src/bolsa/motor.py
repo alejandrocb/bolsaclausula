@@ -5,10 +5,10 @@ Modelo contable (regla 3), por (id_plaza, dirección, cláusula):
     saldo_calculado = saldo_postcontrol
                     − consumo_posterior
                     + devolucion_posterior
-                    + ajuste_clausula        (± por cláusula real de PeopleNet)
+                    + ajuste_peoplenet        (± por cláusula real de PeopleNet)
 
 Cada consumo se computa sobre la cláusula DECLARADA de la propuesta; cuando el
-contrato real de PeopleNet tiene otra cláusula (regla 5), un `ajuste_clausula`
+contrato real de PeopleNet tiene otra cláusula (regla 5), un `ajuste_peoplenet`
 mueve el consumo NETO de la cláusula declarada a la efectiva (suma cero entre
 ambas). Así todas las columnas son términos reales y trazables.
 """
@@ -59,6 +59,10 @@ class DetallePropuesta:
     devolucion_registrada: int = 0
     devolucion_pendiente: int = 0
     movimiento_importe: int = 0
+    direccion_declarada: str = ""
+    direccion_efectiva: str = ""       # división(es) reales del contrato (por tramos)
+    direccion_distinta: bool = False
+    dias_sin_tramo: int = 0            # días del periodo sin GFH que los cubra
 
 
 @dataclass
@@ -73,7 +77,7 @@ class FilaDetalle:
     saldo_postcontrol: int = 0
     consumo_posterior: int = 0
     devolucion_posterior: int = 0
-    ajuste_clausula: int = 0
+    ajuste_peoplenet: int = 0        # relocalización por cláusula/dirección reales
     reserva_pendiente: int = 0
     saldo_calculado: int = 0
     saldo_actual_propuestas: Optional[int] = None
@@ -100,6 +104,34 @@ def _reserva_fin(prop: Propuesta, fecha_limite: date) -> date:
     if prop.fecha_fin is not None:
         return min(prop.fecha_fin, fecha_limite)
     return fecha_limite
+
+
+def reparte_dias(inicio: Optional[date], fin: Optional[date], tramos) -> tuple[dict, int]:
+    """Reparte los días inclusivos del intervalo [inicio, fin] entre las
+    divisiones de los tramos GFH del contrato.
+
+    Devuelve ({division: días}, días_no_cubiertos). Garantiza que la suma de
+    días asignados + no_cubiertos == días inclusivos del intervalo (reparto
+    voraz con tope), de modo que la relocalización tenga suma cero.
+    """
+    total = dias_inclusivos(inicio, fin)
+    if total <= 0:
+        return {}, 0
+    reparto: dict[str, int] = defaultdict(int)
+    restante = total
+    orden = sorted(tramos, key=lambda t: (t.fecha_inicio or inicio))
+    for t in orden:
+        if restante <= 0:
+            break
+        seg_ini = max(inicio, t.fecha_inicio or inicio)
+        seg_fin = min(fin, t.fecha_fin or fin)
+        d = dias_inclusivos(seg_ini, seg_fin)
+        if d <= 0:
+            continue
+        d = min(d, restante)
+        reparto[t.division or ""] += d
+        restante -= d
+    return dict(reparto), restante
 
 
 def computa_propuesta(
@@ -148,6 +180,7 @@ def computa_propuesta(
         laboral=laboral,
         mecanizada=mecanizada,
         computa=False,
+        direccion_declarada=prop.direccion_codigo,
     )
 
     # --- ¿computa en el cálculo? ---
@@ -233,18 +266,36 @@ def conciliar(
             continue
 
         clave_decl = ClavePlaza(prop.id_plaza, prop.direccion_codigo, prop.clausula)
-        clave_efec = ClavePlaza(prop.id_plaza, prop.direccion_codigo, det.clausula_efectiva)
 
-        # consumo y devolución se anotan en la cláusula DECLARADA
+        # consumo y devolución se anotan en la clave DECLARADA de la propuesta
         consumo[clave_decl] += det.consumo_bruto
         devolucion[clave_decl] += det.devolucion_prevista
-        # ajuste por cláusula real: mueve el NETO de declarada -> efectiva
-        if det.clausula_distinta:
-            ajuste[clave_decl] += det.consumo_neto     # devuelve a la declarada
-            ajuste[clave_efec] -= det.consumo_neto     # consume en la efectiva
-        # reserva pendiente sin contrato localizado (riesgo de compromiso)
-        if not det.enlazada:
-            reserva_pend[clave_efec] += det.consumo_neto
+
+        if det.enlazada:
+            # el contrato manda: se relocaliza el NETO de la clave declarada a la
+            # cláusula real + división(es) reales (repartido por tramos GFH)
+            contrato = enl.contratos[0]
+            clau = det.clausula_efectiva
+            reparto, sin_tramo = reparte_dias(
+                prop.fecha_inicio, det.efectivo_fin, contrato.tramos)
+            ajuste[clave_decl] += det.consumo_neto     # sale de la declarada
+            for division, dias in reparto.items():
+                destino = ClavePlaza(prop.id_plaza, division or prop.direccion_codigo, clau)
+                ajuste[destino] -= dias                # entra en la división real
+            if sin_tramo > 0:
+                # tramo GFH no cubre parte del periodo -> se queda en la
+                # dirección de la propuesta (cláusula real), marcado como excepción
+                destino = ClavePlaza(prop.id_plaza, prop.direccion_codigo, clau)
+                ajuste[destino] -= sin_tramo
+            det.direccion_efectiva = ",".join(sorted(reparto)) or prop.direccion_codigo
+            det.dias_sin_tramo = sin_tramo
+            det.direccion_distinta = any(
+                (dv or prop.direccion_codigo) != prop.direccion_codigo for dv in reparto
+            )
+        else:
+            # sin contrato localizado: reserva pendiente (riesgo de compromiso)
+            det.direccion_efectiva = prop.direccion_codigo
+            reserva_pend[clave_decl] += det.consumo_neto
 
     # 3) saldo actual de Propuestas agregado a id_plaza
     sa_agg = defaultdict(int)
@@ -272,7 +323,7 @@ def conciliar(
             saldo_postcontrol=post,
             consumo_posterior=consumo.get(clave, 0),
             devolucion_posterior=devolucion.get(clave, 0),
-            ajuste_clausula=ajuste.get(clave, 0),
+            ajuste_peoplenet=ajuste.get(clave, 0),
             reserva_pendiente=reserva_pend.get(clave, 0),
             laboral=config.es_laboral(clave.id_plaza),
         )
@@ -280,7 +331,7 @@ def conciliar(
             fila.saldo_postcontrol
             - fila.consumo_posterior
             + fila.devolucion_posterior
-            + fila.ajuste_clausula
+            + fila.ajuste_peoplenet
         )
         if clave in sa_agg:
             fila.saldo_actual_propuestas = sa_agg[clave]
@@ -299,12 +350,12 @@ def conciliar(
         a = agg_dir.setdefault(k, dict(
             direccion_codigo=f.direccion_codigo, direccion_nombre=f.direccion_nombre,
             clausula=f.clausula, saldo_postcontrol=0, consumo_posterior=0,
-            devolucion_posterior=0, ajuste_clausula=0, reserva_pendiente=0,
+            devolucion_posterior=0, ajuste_peoplenet=0, reserva_pendiente=0,
             saldo_calculado=0, saldo_actual_propuestas=0, diferencia=0))
         a["saldo_postcontrol"] += f.saldo_postcontrol
         a["consumo_posterior"] += f.consumo_posterior
         a["devolucion_posterior"] += f.devolucion_posterior
-        a["ajuste_clausula"] += f.ajuste_clausula
+        a["ajuste_peoplenet"] += f.ajuste_peoplenet
         a["reserva_pendiente"] += f.reserva_pendiente
         a["saldo_calculado"] += f.saldo_calculado
         a["saldo_actual_propuestas"] += f.saldo_actual_propuestas or 0
@@ -319,12 +370,12 @@ def conciliar(
     for f in res.detalle:
         a = agg_cl.setdefault(f.clausula, dict(
             clausula=f.clausula, saldo_postcontrol=0, consumo_posterior=0,
-            devolucion_posterior=0, ajuste_clausula=0, reserva_pendiente=0,
+            devolucion_posterior=0, ajuste_peoplenet=0, reserva_pendiente=0,
             saldo_calculado=0, saldo_actual_propuestas=0))
         a["saldo_postcontrol"] += f.saldo_postcontrol
         a["consumo_posterior"] += f.consumo_posterior
         a["devolucion_posterior"] += f.devolucion_posterior
-        a["ajuste_clausula"] += f.ajuste_clausula
+        a["ajuste_peoplenet"] += f.ajuste_peoplenet
         a["reserva_pendiente"] += f.reserva_pendiente
         a["saldo_calculado"] += f.saldo_calculado
         a["saldo_actual_propuestas"] += f.saldo_actual_propuestas or 0

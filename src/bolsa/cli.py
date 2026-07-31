@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .cargas.inicial import carga_saldo_inicial, carga_postcontrol, carga_diario
+from .cargas.maestros import carga_divisiones
 from .cargas.periodicas import (
     carga_bolsa_peoplenet,
     carga_contratos,
@@ -39,19 +40,29 @@ def _busca(carpeta: Path, patron: str) -> Path:
     return coincidencias[-1]
 
 
+def _busca_op(carpeta: Path, patron: str):
+    coincidencias = sorted(Path(carpeta).glob(patron))
+    return coincidencias[-1] if coincidencias else None
+
+
 def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
-            equivalencias_csv=None) -> dict:
+            equivalencias_csv=None, dir_maestros=None) -> dict:
     inic = Path(dir_inicial)
     per = Path(dir_periodicas)
+    maes = Path(dir_maestros) if dir_maestros else inic.parent / "maestros"
 
     ruta_aud = _busca(inic, "*auditoria*.csv")
     ruta_post = _busca(inic, "*post_control*.csv")
     ruta_diario = _busca(inic, "*postcontrol_diario*.csv")
     ruta_prop = _busca(per, "PropuestasContratacion*.csv")
-    ruta_contr = _busca(per, "Contratos*PeopleNet*.ods")
+    # el export de contratos puede venir como .xlsx o .ods
+    ruta_contr = (_busca_op(per, "Contratos*PeopleNet*.xlsx")
+                  or _busca(per, "Contratos*PeopleNet*.ods"))
     ruta_mov = _busca(per, "MovimientosBolsa*.csv")
     ruta_saldo = _busca(per, "SaldoActualPropuestas*.csv")
     ruta_bolsa = _busca(per, "Bolsa*d*as*.xlsx")
+    ruta_div = (_busca_op(maes, "Divisiones*.xlsx")
+                or _busca_op(per, "Divisiones*.xlsx"))
 
     print("Cargando corte inicial…", file=sys.stderr)
     saldo_inicial = carga_saldo_inicial(ruta_aud)
@@ -65,9 +76,13 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
         print(f"AVISO: {len(discrepancias)} discrepancias auditoría/post_control",
               file=sys.stderr)
 
-    print("Cargando ficheros periódicos…", file=sys.stderr)
+    print("Cargando maestro de divisiones y ficheros periódicos…", file=sys.stderr)
+    divisiones = carga_divisiones(ruta_div) if ruta_div else {}
+    if not divisiones:
+        print("AVISO: sin maestro de Divisiones; la dirección real del contrato "
+              "no podrá resolverse (se usará la de la propuesta).", file=sys.stderr)
     propuestas = dedup_propuestas(carga_propuestas(ruta_prop))
-    contratos = carga_contratos(ruta_contr)
+    contratos = carga_contratos(ruta_contr, divisiones)
     movimientos = dedup_movimientos(carga_movimientos(ruta_mov))
     saldo_actual = carga_saldo_actual(ruta_saldo)
     bolsa = carga_bolsa_peoplenet(ruta_bolsa)
@@ -79,6 +94,7 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
         registra(ruta_post, "inicial_postcontrol", len(postcontrol)),
         registra(ruta_prop, "propuestas", len(propuestas)),
         registra(ruta_contr, "contratos", len(contratos)),
+    ] + ([registra(ruta_div, "maestro_divisiones", len(divisiones))] if ruta_div else []) + [
         registra(ruta_mov, "movimientos", len(movimientos)),
         registra(ruta_saldo, "saldo_actual", len(saldo_actual)),
         registra(ruta_bolsa, "bolsa_peoplenet", len(bolsa)),

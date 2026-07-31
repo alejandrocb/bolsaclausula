@@ -14,6 +14,11 @@ acumulan.
 
 2. **Comprobar el mapeo** (`config/mapeo_columnas.yaml`) si la exportación pudo
    cambiar de columnas. No hace falta tocar código.
+   - El export de **Contratos** debe incluir `Inicio GFH`, `Fin GFH`, `id. GFH1`
+     (tramos GFH) para que la dirección real se reparta bien.
+   - El **maestro de Divisiones** va en `data/maestros/Divisiones_Plazas_GFHs.xlsx`.
+     Actualízalo si se dan de alta nuevos GFH/plazas (si falta un `(plaza,GFH)`,
+     esos días se marcan como excepción “sin división”).
 
 3. **Registrar equivalencias NIE/DNI** nuevas en
    `config/equivalencias_nie_dni.csv` (`idrh_a;idrh_b;motivo;fecha_alta;usuario`).

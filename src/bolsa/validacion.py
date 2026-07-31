@@ -98,7 +98,9 @@ def valida_movimientos(
                 clausula=m.clausula, incidencias="; ".join(problemas),
             ))
 
-    ids = set(det_by_id) | set(consumo_nueva)
+    # solo interesan las que computan (posteriores al corte) o tienen movimiento
+    ids = {pid for pid, d in det_by_id.items() if d.computa}
+    ids |= set(consumo_nueva) | set(devol_reg)
     n_computan = n_con_mov = n_dif = 0
     for pid in sorted(ids):
         d = det_by_id.get(pid)

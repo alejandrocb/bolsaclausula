@@ -57,6 +57,16 @@ class Propuesta:
 
 
 @dataclass
+class TramoGFH:
+    """Tramo de un contrato en un GFH concreto (regla dirección real)."""
+    fecha_inicio: Optional[date]
+    fecha_fin: Optional[date]
+    gfh_id: str
+    gfh_nombre: str
+    division: str                   # dirección real (resuelta con el maestro)
+
+
+@dataclass
 class Contrato:
     idrh: str
     num_periodo: str
@@ -65,10 +75,15 @@ class Contrato:
     fecha_inicio: Optional[date]
     fecha_fin: Optional[date]
     motivo_inicio: str
+    tramos: list["TramoGFH"] = field(default_factory=list)
 
     @property
     def cerrado(self) -> bool:
         return self.fecha_fin is not None
+
+    @property
+    def divisiones(self) -> list[str]:
+        return sorted({t.division for t in self.tramos if t.division})
 
 
 @dataclass

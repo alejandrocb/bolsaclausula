@@ -61,6 +61,34 @@ def lee_ods(ruta, hoja: str | None = None) -> list[list[str]]:
     return filas
 
 
+def lee_xlsx(ruta, hoja: str | None = None) -> list[list]:
+    """Filas (valores crudos) de una hoja XLSX. Acepta cualquier extensión
+    (lee el contenido en memoria, sin depender del sufijo del fichero)."""
+    import io
+    import openpyxl
+
+    wb = openpyxl.load_workbook(
+        io.BytesIO(Path(ruta).read_bytes()), read_only=True, data_only=True
+    )
+    ws = wb[hoja] if hoja else wb[wb.sheetnames[0]]
+    filas = []
+    for fila in ws.iter_rows(values_only=True):
+        if fila is None or all(c is None for c in fila):
+            continue
+        filas.append(list(fila))
+    return filas
+
+
+def lee_tabla(ruta, hoja: str | None = None) -> list[list]:
+    """Lee una hoja de cálculo autodetectando XLSX vs ODS por su contenido
+    (algunos export vienen con extensión .ods pero son XLSX y viceversa)."""
+    with zipfile.ZipFile(ruta) as z:
+        nombres = z.namelist()
+    if "content.xml" in nombres:
+        return lee_ods(ruta, hoja)
+    return lee_xlsx(ruta, hoja)
+
+
 def dicts_desde_filas(filas: list[list[str]]) -> Iterator[dict]:
     """Convierte filas [cabecera, *datos] en dicts."""
     if not filas:

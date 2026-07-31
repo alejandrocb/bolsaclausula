@@ -38,11 +38,21 @@ fecha_fin_contrato, idrh, propuesta_original_id, propuesta_sustituta_id`.
 - Sub_estado `MECANIZADA` = mecanizada; otros = reserva pendiente de mecanizar.
 - `idrh` puede ser DNI o NIE (`X…`).
 
-### 6. `Contratos_PeopleNet_*.ods` — tabla `Query`, fecha `DD/MM/YYYY`
+### 6. `Contratos_PeopleNet_*.xlsx` (o `.ods`) — tabla/hoja `Query`, fecha `DD/MM/YYYY`
 `ID RH | Núm. periodo | Inicio Plaza | Fin Plaza | Id. Cláusula |
-Motivo inicio | ID Plaza | Descripción Plaza`.
-- `Fin Plaza` vacío = contrato **abierto**.
-- La lectura de ODS no requiere dependencias (zip + XML).
+Motivo inicio | ID Plaza | Descripción Plaza | Inicio GFH | Fin GFH |
+id. GFH1 | Nombre GFH`.
+- **Un `(ID RH, Núm. periodo)` = 1 contrato**; puede tener **varias filas**, una
+  por **tramo GFH** (con su `Inicio GFH`/`Fin GFH`). El cargador las agrupa.
+- `Fin Plaza` vacío = contrato **abierto**; `Fin GFH` vacío = tramo abierto.
+- El formato real puede ser XLSX o ODS: **se autodetecta** por contenido.
+- **El contrato manda** sobre cláusula y dirección (regla 5).
+
+### Maestro `Divisiones_Plazas_GFHs.xlsx` — hoja `Hoja1`
+`ID Plaza | DG | ID GFH | División asignada | Nivel`.
+- Traduce **`(ID Plaza, ID GFH) → División asignada`** (la dirección real). Es
+  función (una división por combinación). Va en `data/maestros/`.
+- No contiene datos personales.
 
 ### 7. `MovimientosBolsa_*.csv` — delimitador `|`, fecha `YYYY-MM-DD HH:MM:SS`
 `movimiento_id | bolsa_dias_id | propuesta_id | fecha_movimiento |

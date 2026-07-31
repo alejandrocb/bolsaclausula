@@ -68,6 +68,19 @@ contratos:
     clausula: "Id. Cláusula"
     motivo_inicio: "Motivo inicio"
     id_plaza: "ID Plaza"
+    # tramos GFH (una fila por tramo; se agrupan por idrh+num_periodo)
+    gfh_inicio: "Inicio GFH"
+    gfh_fin: "Fin GFH"
+    gfh_id: "id. GFH1"
+    gfh_nombre: "Nombre GFH"
+
+# Maestro (ID Plaza, ID GFH) -> División asignada (dirección real)
+divisiones:
+  hoja: "Hoja1"
+  columnas:
+    id_plaza: "ID Plaza"
+    gfh_id: "ID GFH"
+    division: "División asignada"
 
 movimientos:
   delimitador: "|"

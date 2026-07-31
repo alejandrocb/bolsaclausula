@@ -40,9 +40,10 @@ data/
                carga_postcontrol_diario_2026-06-30_a_2026-07-02.csv
   periodicas/  PropuestasContratacion_<fecha>.csv
                Bolsa_de_dias_<fecha>.xlsx
-               Contratos_PeopleNet_<fecha>.ods
+               Contratos_PeopleNet_<fecha>.xlsx   (o .ods; se autodetecta)
                MovimientosBolsa_<fecha>.csv
                SaldoActualPropuestas_<fecha>.csv
+  maestros/    Divisiones_Plazas_GFHs.xlsx        (ID Plaza, ID GFH → División)
 ```
 
 ## Ejecución
@@ -55,14 +56,14 @@ PYTHONPATH=src python -m bolsa.cli
 
 Genera en `salidas/`:
 - **`conciliacion_<fecha>.xlsx`** — detalle, resumen por dirección, totales,
-  semáforo y 9 pestañas de auditoría.
+  semáforo y 11 pestañas de auditoría.
 - **`recarga_propuestas_<fecha>.xlsx`** — fichero de recarga completa
   (ID Plaza, categoría, dirección, cláusula, saldo para cargar; incluye 0).
 
 ## Pruebas
 
 ```bash
-python -m pytest -q        # 27 pruebas
+python -m pytest -q        # 32 pruebas
 ```
 
 Cubren: conteo inclusivo y topes de fecha; enlace propuesta↔contrato; los
@@ -82,7 +83,7 @@ vez).
 | 2 | Base aritmética = solo el corte 02/07 (los 3 CSV). SaldoActual **no** es base | `motor.conciliar`, `cargas.inicial` |
 | 3 | `saldo = postcontrol − consumo + devolución ± ajuste_cláusula` | `motor.conciliar` |
 | 4 | Propuestas autorizadas tras el corte consumen aunque no haya contrato | `motor.computa_propuesta` |
-| 5 | La cláusula real de PeopleNet manda sobre la de la propuesta | `modelo.Enlace.clausula_efectiva`, `motor` (ajuste) |
+| 5 | La **cláusula y la dirección reales del contrato** mandan sobre la propuesta; la dirección se resuelve por `(GFH, ID Plaza)` y se reparte por tramos GFH | `enlace`, `motor.reparte_dias`, maestro Divisiones |
 | 6 | Abiertas/contratos abiertos reservan solo hasta 31/12/2026 | `fechas.fin_computable` |
 | 7 | Contrato cerrado: fin = min(fin propuesta, fin contrato, 31/12/2026) | `fechas.fin_computable` |
 | 8 | Devolución **prevista / registrada / pendiente** diferenciadas | `motor` + `MovimientosBolsa` |
@@ -110,6 +111,13 @@ vez).
   anómalos y 9 propuestas con diferencia, **todas explicadas** por el recorte a
   31/12/2026 (lo registrado coincide con el periodo completo de la propuesta).
   Pestañas `A10_Esperado_vs_Registrado` y `A11_Movimientos_anomalos`.
+- **Dirección real (GFH):** el contrato manda también sobre la dirección; se
+  resuelve por `(GFH, ID Plaza)` con el maestro de Divisiones y se **reparte por
+  tramos** cuando el GFH cambia durante el contrato. En este corte, 0 propuestas
+  posteriores cambian de dirección respecto a la propuesta (solo 38 de 4.474
+  contratos abarcan >1 división), así que **no altera las cifras**, pero queda
+  cubierto para cuando haya movilidad. Pestaña `A3b_Direccion_distinta`. La
+  división `FORM` (formación) no está en el corte y se marca como fila nueva.
 
 ### Semáforo (días)
 

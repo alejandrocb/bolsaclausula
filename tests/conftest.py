@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from bolsa.modelo import (  # noqa: E402
     BolsaPeopleNet, ClavePlaza, Contrato, Movimiento, Propuesta,
-    SaldoActual, SaldoInicial,
+    SaldoActual, SaldoInicial, TramoGFH,
 )
 
 
@@ -32,11 +32,25 @@ def propuesta(pid="1", id_plaza="E071A2", direccion="DEAP", clausula="S9b1a",
 
 
 def contrato(idrh="12345678Z", periodo="1", id_plaza="E071A2", clausula="S9b1a",
-             inicio="2026-07-10", fin=None, motivo="ENF"):
+             inicio="2026-07-10", fin=None, motivo="ENF", division="DEAP",
+             tramos=None):
+    """Contrato con un tramo GFH por defecto que cubre todo su periodo.
+
+    `tramos` = lista de (inicio, fin, division) para simular cambios de GFH.
+    """
+    if tramos is None:
+        trs = [TramoGFH(fecha_inicio=d(inicio) if inicio else None,
+                        fecha_fin=d(fin) if fin else None,
+                        gfh_id="G1", gfh_nombre="GFH1", division=division)]
+    else:
+        trs = [TramoGFH(fecha_inicio=d(ti) if ti else None,
+                        fecha_fin=d(tf) if tf else None,
+                        gfh_id=f"G{i}", gfh_nombre=f"GFH{i}", division=dv)
+               for i, (ti, tf, dv) in enumerate(tramos)]
     return Contrato(
         idrh=idrh, num_periodo=periodo, id_plaza=id_plaza, clausula=clausula,
         fecha_inicio=d(inicio) if inicio else None,
-        fecha_fin=d(fin) if fin else None, motivo_inicio=motivo,
+        fecha_fin=d(fin) if fin else None, motivo_inicio=motivo, tramos=trs,
     )
 
 
