@@ -44,7 +44,7 @@ def test_conciliacion_completa_mantiene_identidad_contable():
     for f in res.detalle:
         assert f.saldo_calculado == (
             f.saldo_postcontrol - f.consumo_posterior
-            + f.devolucion_posterior + f.ajuste_peoplenet
+            + f.devolucion_posterior + f.devolucion_cierre + f.ajuste_peoplenet
         )
     # el ajuste PeopleNet (cláusula+dirección) mueve saldo dentro de la MISMA
     # plaza; la suma global sobre cláusulas prioritarias es <= 0 (parte puede

@@ -78,6 +78,7 @@ class FilaDetalle:
     saldo_postcontrol: int = 0
     consumo_posterior: int = 0
     devolucion_posterior: int = 0
+    devolucion_cierre: int = 0       # cierre de contrato posterior al corte (calculada)
     ajuste_peoplenet: int = 0        # relocalización por cláusula/dirección reales
     reserva_pendiente: int = 0
     saldo_calculado: int = 0
@@ -97,6 +98,7 @@ class ResultadoConciliacion:
     contratos_sin_propuesta: list[Contrato] = field(default_factory=list)
     enlaces: list[Enlace] = field(default_factory=list)
     avisos_corte: list[str] = field(default_factory=list)
+    devoluciones_cierre: list[dict] = field(default_factory=list)
     validacion: object = None       # ResultadoValidacion (validación cruzada)
 
 
@@ -302,6 +304,54 @@ def conciliar(
             det.direccion_efectiva = prop.direccion_codigo
             reserva_pend[clave_decl] += det.consumo_neto
 
+    # 2bis) devoluciones por cierre de contrato posterior al corte.
+    # Las propuestas PRE-corte tienen su reserva (hasta 31/12) metida en la base
+    # postcontrol; si el contrato cierra antes de 31/12, el tramo cierre+1 -> fin
+    # reservado debe devolverse. Se calcula UNA vez por contrato (idrh,periodo)
+    # y se anota en la clave declarada de la propuesta (revierte la base).
+    devol_cierre = defaultdict(int)
+    cierres: dict[tuple, dict] = {}
+    for enl in enlaces:
+        prop = enl.propuesta
+        if not enl.enlazada:
+            continue
+        if prop.estado not in config.estados_vivos:
+            continue
+        if prop.clausula not in prioritarias:
+            continue
+        if config.es_laboral(prop.id_plaza):
+            continue
+        if prop.fecha_autorizacion is None or prop.fecha_autorizacion > fecha_corte:
+            continue  # solo reservas PRE-corte (ya en la base)
+        c = enl.contratos[0]
+        if not c.cerrado or not (fecha_corte < c.fecha_fin < fecha_limite):
+            continue
+        reservado_fin = min(prop.fecha_fin or fecha_limite, fecha_limite)
+        if reservado_fin <= c.fecha_fin:
+            continue
+        key = (c.idrh, c.num_periodo)
+        prev = cierres.get(key)
+        if prev is None or reservado_fin > prev["reservado_fin"]:
+            cierres[key] = {"prop": prop, "contrato": c, "reservado_fin": reservado_fin}
+
+    for info in cierres.values():
+        prop = info["prop"]; c = info["contrato"]; rfin = info["reservado_fin"]
+        inicio_dev = date.fromordinal(c.fecha_fin.toordinal() + 1)
+        dias = dias_inclusivos(inicio_dev, rfin)
+        if dias <= 0:
+            continue
+        clave = ClavePlaza(prop.id_plaza, prop.direccion_codigo, prop.clausula)
+        devol_cierre[clave] += dias
+        registrada = devol_mov.get(prop.propuesta_id, 0)
+        res.devoluciones_cierre.append(dict(
+            propuesta_id=prop.propuesta_id, idrh=prop.idrh, id_plaza=prop.id_plaza,
+            direccion=prop.direccion_codigo, clausula=prop.clausula,
+            contrato_periodo=c.num_periodo, contrato_fin=str(c.fecha_fin),
+            reservado_hasta=str(rfin), dias_devueltos=dias,
+            devolucion_registrada=registrada,
+            devolucion_pendiente=max(0, dias - registrada),
+        ))
+
     # 3) saldo actual de Propuestas agregado a id_plaza
     sa_agg = defaultdict(int)
     for sa in saldo_actual:
@@ -310,7 +360,7 @@ def conciliar(
     # 4) construir filas de detalle (todas las claves prioritarias del corte +
     #    cualquier clave prioritaria que aparezca por consumo/ajuste)
     claves = set(k for k in saldo_inicial if k.clausula in prioritarias)
-    for d in (consumo, ajuste, reserva_pend, devolucion):
+    for d in (consumo, ajuste, reserva_pend, devolucion, devol_cierre):
         claves |= {k for k in d if k.clausula in prioritarias}
 
     for clave in sorted(claves, key=lambda k: (k.direccion_codigo, k.id_plaza, k.clausula)):
@@ -328,6 +378,7 @@ def conciliar(
             saldo_postcontrol=post,
             consumo_posterior=consumo.get(clave, 0),
             devolucion_posterior=devolucion.get(clave, 0),
+            devolucion_cierre=devol_cierre.get(clave, 0),
             ajuste_peoplenet=ajuste.get(clave, 0),
             reserva_pendiente=reserva_pend.get(clave, 0),
             laboral=config.es_laboral(clave.id_plaza),
@@ -336,6 +387,7 @@ def conciliar(
             fila.saldo_postcontrol
             - fila.consumo_posterior
             + fila.devolucion_posterior
+            + fila.devolucion_cierre
             + fila.ajuste_peoplenet
         )
         if clave in sa_agg:
@@ -355,11 +407,13 @@ def conciliar(
         a = agg_dir.setdefault(k, dict(
             direccion_codigo=f.direccion_codigo, direccion_nombre=f.direccion_nombre,
             clausula=f.clausula, saldo_postcontrol=0, consumo_posterior=0,
-            devolucion_posterior=0, ajuste_peoplenet=0, reserva_pendiente=0,
+            devolucion_posterior=0, devolucion_cierre=0, ajuste_peoplenet=0,
+            reserva_pendiente=0,
             saldo_calculado=0, saldo_actual_propuestas=0, diferencia=0))
         a["saldo_postcontrol"] += f.saldo_postcontrol
         a["consumo_posterior"] += f.consumo_posterior
         a["devolucion_posterior"] += f.devolucion_posterior
+        a["devolucion_cierre"] += f.devolucion_cierre
         a["ajuste_peoplenet"] += f.ajuste_peoplenet
         a["reserva_pendiente"] += f.reserva_pendiente
         a["saldo_calculado"] += f.saldo_calculado
@@ -375,11 +429,13 @@ def conciliar(
     for f in res.detalle:
         a = agg_cl.setdefault(f.clausula, dict(
             clausula=f.clausula, saldo_postcontrol=0, consumo_posterior=0,
-            devolucion_posterior=0, ajuste_peoplenet=0, reserva_pendiente=0,
+            devolucion_posterior=0, devolucion_cierre=0, ajuste_peoplenet=0,
+            reserva_pendiente=0,
             saldo_calculado=0, saldo_actual_propuestas=0))
         a["saldo_postcontrol"] += f.saldo_postcontrol
         a["consumo_posterior"] += f.consumo_posterior
         a["devolucion_posterior"] += f.devolucion_posterior
+        a["devolucion_cierre"] += f.devolucion_cierre
         a["ajuste_peoplenet"] += f.ajuste_peoplenet
         a["reserva_pendiente"] += f.reserva_pendiente
         a["saldo_calculado"] += f.saldo_calculado

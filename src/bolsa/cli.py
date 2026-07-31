@@ -113,6 +113,12 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
     exporta_recarga(res, ruta_rec)
 
     # resumen a consola
+    if res.devoluciones_cierre:
+        tot = sum(c["dias_devueltos"] for c in res.devoluciones_cierre)
+        print(f"\nDevoluciones por cierre de contrato (calculadas): "
+              f"{len(res.devoluciones_cierre)} contratos, {tot} días "
+              f"(ver pestaña A5b).", file=sys.stderr)
+
     print("\n=== SEMÁFORO ===", file=sys.stderr)
     for s in res.semaforo:
         print(f"  {s['clausula']}: {s['estado']}  "
