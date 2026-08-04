@@ -41,8 +41,8 @@ inicial_diario:
     clasificacion: clasificacion
 
 propuestas:
-  delimitador: "|"
-  formato_fecha: "%Y-%m-%d %H:%M:%S"
+  delimitador: "|"    # exportar SIN filtro de cláusula (Opción B): la cláusula
+  formato_fecha: "%Y-%m-%d %H:%M:%S"   # real la pone el contrato (puede ser NULL)
   columnas:
     propuesta_id: propuesta_id
     categoria_codigo: categoria_codigo
