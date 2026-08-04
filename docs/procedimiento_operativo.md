@@ -39,6 +39,12 @@ acumulan.
    PYTHONPATH=src python -m bolsa.cli
    ```
 
+> **Registro de contratos** (`data/estado/registro_contratos.csv`, no se
+> versiona): en cada ejecución congela el **alta** de cada contrato la 1ª vez
+> que aparece y marca los **contratos nuevos** de esa importación (columna en
+> `A4b`). La primera ejecución marca todo como nuevo; a partir de la 2ª, solo
+> los realmente nuevos. Consérvalo entre cargas.
+
 5. **Revisar** en `salidas/conciliacion_<fecha>.xlsx`:
    - `4_Semaforo`: que ninguna cláusula quede en **ROJO** (disponible tras
      compromisos < 0). Ámbar = margen < 5 %.

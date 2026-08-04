@@ -105,9 +105,20 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
         registra(ruta_bolsa, "bolsa_peoplenet", len(bolsa)),
     ]
 
+    # registro persistente de contratos (congela el alta en la 1ª aparición)
+    from .registro_contratos import RegistroContratos
+    ruta_registro = inic.parent / "estado" / "registro_contratos.csv"
+    registro = RegistroContratos.carga(ruta_registro)
+    registro.actualiza(contratos, datetime.now().date())
+    registro.guarda(ruta_registro)
+    if registro.nuevos:
+        print(f"Contratos nuevos en esta importación: {len(registro.nuevos)} "
+              f"(ver A4b, columna '¿Nuevo esta importación?').", file=sys.stderr)
+
     print("Conciliando…", file=sys.stderr)
     res = conciliar(saldo_inicial, propuestas, contratos, movimientos,
-                    saldo_actual, bolsa, equivalencias, plazas_equiv)
+                    saldo_actual, bolsa, equivalencias, plazas_equiv,
+                    info_contratos=registro.info())
 
     sello = datetime.now().strftime("%Y%m%d")
     dir_salida = Path(dir_salida)
