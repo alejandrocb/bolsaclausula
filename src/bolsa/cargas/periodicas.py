@@ -116,6 +116,17 @@ def carga_contratos(
                 if ref:
                     propuesta_ref = ref
                     break
+        # fecha de alta = mínimo de las tres fechas de última actualización
+        altas = []
+        for clave_ua in ("ua_periodo", "ua_plaza", "ua_puesto"):
+            c_ua = col.get(clave_ua)
+            if not c_ua:
+                continue
+            for r in filas_c:
+                f = parse_fecha(r.get(c_ua), fmt)
+                if f:
+                    altas.append(f)
+        alta = min(altas) if altas else None
         out.append(Contrato(
             idrh=idrh,
             num_periodo=val(base, "num_periodo"),
@@ -126,6 +137,7 @@ def carga_contratos(
             motivo_inicio=val(base, "motivo_inicio"),
             tramos=tramos,
             propuesta_ref=propuesta_ref,
+            alta=alta,
         ))
     return out
 

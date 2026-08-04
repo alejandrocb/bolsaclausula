@@ -203,6 +203,16 @@ def exporta_conciliacion(
                and d.devolucion_prevista > 0]
     _hoja(wb, "A5_Cierres_devoluciones", cols_prop, cierres)
 
+    _hoja(wb, "A4b_Contratos_post_corte", [
+        ("idrh", "IDRH"), ("num_periodo", "Nº periodo"), ("id_plaza", "ID Plaza"),
+        ("clausula", "Cláusula"), ("inicio_plaza", "Inicio plaza"),
+        ("fin_plaza", "Fin plaza"), ("alta", "Alta (mín. 3 fechas)"),
+        ("propuesta_ref", "Propuesta (comentario)"),
+        ("alta_posterior_corte", "¿Alta ≥ 02/07?"),
+        ("enlazado_a_propuesta", "¿Enlaza propuesta viva?"),
+        ("incidencia", "Incidencia"),
+    ], res.contratos_post_corte)
+
     _hoja(wb, "A5b_Devoluciones_cierre", [
         ("propuesta_id", "Propuesta"), ("idrh", "IDRH"), ("id_plaza", "ID Plaza"),
         ("direccion", "Dirección"), ("clausula", "Cláusula"),

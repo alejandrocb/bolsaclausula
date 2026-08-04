@@ -49,6 +49,9 @@ id. GFH1 | Nombre GFH`.
 - **El contrato manda** sobre cláusula y dirección (regla 5).
 - `Comentario` suele traer **"Solicitud contratacion <propuesta_id>"**: enlace
   DIRECTO contrato→propuesta (prioritario sobre el heurístico).
+- `Última actualización Periodo/Plaza/Puesto`: la **fecha de alta** se estima como
+  el **mínimo** de las tres (mediana ~5 días del inicio de plaza). Se usa para
+  auditar los contratos con inicio posterior al corte (`A4b`).
 
 ### Maestro `Divisiones_Plazas_GFHs.xlsx` — hoja `Hoja1`
 `ID Plaza | DG | ID GFH | División asignada | Nivel`.

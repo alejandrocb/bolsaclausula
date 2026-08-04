@@ -77,6 +77,7 @@ class Contrato:
     motivo_inicio: str
     tramos: list["TramoGFH"] = field(default_factory=list)
     propuesta_ref: str = ""        # propuesta enlazada explícitamente (comentario)
+    alta: Optional[date] = None    # mín(últ. act. periodo/plaza/puesto) ≈ fecha de alta
 
     @property
     def cerrado(self) -> bool:
