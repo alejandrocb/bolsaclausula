@@ -206,7 +206,9 @@ def exporta_conciliacion(
     _hoja(wb, "A4b_Contratos_post_corte", [
         ("idrh", "IDRH"), ("num_periodo", "Nº periodo"), ("id_plaza", "ID Plaza"),
         ("clausula", "Cláusula"), ("inicio_plaza", "Inicio plaza"),
-        ("fin_plaza", "Fin plaza"), ("alta", "Alta (mín. 3 fechas)"),
+        ("fin_plaza", "Fin plaza"), ("alta", "Alta (congelada)"),
+        ("primera_aparicion", "1ª aparición (importación)"),
+        ("nuevo_en_importacion", "¿Nuevo esta importación?"),
         ("propuesta_ref", "Propuesta (comentario)"),
         ("alta_posterior_corte", "¿Alta ≥ 02/07?"),
         ("enlazado_a_propuesta", "¿Enlaza propuesta viva?"),

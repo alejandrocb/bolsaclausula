@@ -236,6 +236,7 @@ def conciliar(
     bolsa_peoplenet: list[BolsaPeopleNet],
     equivalencias: Optional[Equivalencias] = None,
     plazas_equiv: Optional[Equivalencias] = None,
+    info_contratos: Optional[dict] = None,
     config=CONFIG,
 ) -> ResultadoConciliacion:
     fecha_corte = parse_fecha(config.fecha_corte)
@@ -385,12 +386,16 @@ def conciliar(
             incidencia = f"referencia propuesta {c.propuesta_ref} no está en el export"
         else:
             incidencia = "sin propuesta localizada (posible consumo no capturado)"
+        info = (info_contratos or {}).get((c.idrh, c.num_periodo), {})
+        alta = info.get("alta_congelada") or c.alta   # congelada si hay registro
         res.contratos_post_corte.append(dict(
             idrh=c.idrh, num_periodo=c.num_periodo, id_plaza=c.id_plaza,
             clausula=c.clausula, inicio_plaza=str(c.fecha_inicio or ""),
-            fin_plaza=str(c.fecha_fin or ""), alta=str(c.alta or ""),
+            fin_plaza=str(c.fecha_fin or ""), alta=str(alta or ""),
+            primera_aparicion=str(info.get("primera_aparicion") or ""),
+            nuevo_en_importacion=bool(info.get("nuevo")),
             propuesta_ref=c.propuesta_ref,
-            alta_posterior_corte=(c.alta is not None and c.alta >= fecha_corte),
+            alta_posterior_corte=(alta is not None and alta >= fecha_corte),
             enlazado_a_propuesta=cubierto,
             incidencia=incidencia,
         ))
