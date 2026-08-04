@@ -50,7 +50,7 @@ class Equivalencias:
         return self.canonico(a) == self.canonico(b)
 
     @classmethod
-    def desde_csv(cls, ruta=None) -> "Equivalencias":
+    def desde_csv(cls, ruta=None, col_a="idrh_a", col_b="idrh_b") -> "Equivalencias":
         ruta = Path(ruta) if ruta else DIR_CONFIG / "equivalencias_nie_dni.csv"
         eq = cls()
         if not ruta.exists():
@@ -65,7 +65,7 @@ class Equivalencias:
         import csv as _csv
         for r in _csv.DictReader(lineas, delimiter=";"):
             eq.añade(
-                r.get("idrh_a", ""), r.get("idrh_b", ""),
+                r.get(col_a, ""), r.get(col_b, ""),
                 motivo=r.get("motivo", ""),
                 fecha_alta=r.get("fecha_alta", ""),
                 usuario=r.get("usuario", ""),

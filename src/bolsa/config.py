@@ -144,6 +144,17 @@ class Config:
     def estados_anulados(self) -> list[str]:
         return list(self.parametros["estados_anulados"])
 
+    @property
+    def sub_estados_reserva_firme(self) -> list[str]:
+        return list(self.parametros.get("sub_estados_reserva_firme", []) or [])
+
+    def es_reserva_firme(self, sub_estado: str) -> bool:
+        """¿El sub_estado cuenta como aprobación firme para reservar sin contrato?"""
+        firmes = self.sub_estados_reserva_firme
+        if not firmes or "*" in firmes:
+            return True
+        return sub_estado in firmes
+
     def es_laboral(self, id_plaza: str) -> bool:
         return bool(id_plaza) and id_plaza.upper().startswith(self.prefijo_laboral)
 

@@ -23,11 +23,27 @@ acumulan.
 3. **Registrar equivalencias NIE/DNI** nuevas en
    `config/equivalencias_nie_dni.csv` (`idrh_a;idrh_b;motivo;fecha_alta;usuario`).
    Quedan auditadas en la pestaña `A8b`.
+   - **Equivalencias de plaza** (cuando contrato y propuesta usan códigos
+     distintos para la misma categoría, p.ej. `E071A2`/`E073A2`) en
+     `config/equivalencias_plazas.csv`. Solo enlaza los pares declarados; no
+     enlaza plazas no relacionadas. Los enlaces así se marcan en `A9`.
+
+3bis. **Política de reserva** (`parametros.yaml → sub_estados_reserva_firme`):
+   una propuesta **enlazada a contrato consume siempre** (mecanizada); una
+   propuesta **sin contrato** solo reserva si su `sub_estado` está en esa lista.
+   Endurece o relaja según qué aprobaciones consideres un compromiso firme. El
+   desglose está en `A2b_Reserva_por_subestado`.
 
 4. **Ejecutar**:
    ```bash
    PYTHONPATH=src python -m bolsa.cli
    ```
+
+> **Registro de contratos** (`data/estado/registro_contratos.csv`, no se
+> versiona): en cada ejecución congela el **alta** de cada contrato la 1ª vez
+> que aparece y marca los **contratos nuevos** de esa importación (columna en
+> `A4b`). La primera ejecución marca todo como nuevo; a partir de la 2ª, solo
+> los realmente nuevos. Consérvalo entre cargas.
 
 5. **Revisar** en `salidas/conciliacion_<fecha>.xlsx`:
    - `4_Semaforo`: que ninguna cláusula quede en **ROJO** (disponible tras

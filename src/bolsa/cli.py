@@ -60,7 +60,8 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
                   or _busca(per, "Contratos*PeopleNet*.ods"))
     ruta_mov = _busca(per, "MovimientosBolsa*.csv")
     ruta_saldo = _busca(per, "SaldoActualPropuestas*.csv")
-    ruta_bolsa = _busca(per, "Bolsa*d*as*.xlsx")
+    # acepta "Bolsa de días…", "Bolsa_de_dias…" y "Bolsa_PeopleNet_a_…"
+    ruta_bolsa = (_busca_op(per, "Bolsa*.xlsx") or _busca(per, "Bolsa*d*as*.xlsx"))
     ruta_div = (_busca_op(maes, "Divisiones*.xlsx")
                 or _busca_op(per, "Divisiones*.xlsx"))
 
@@ -88,6 +89,10 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
     bolsa = carga_bolsa_peoplenet(ruta_bolsa)
 
     equivalencias = Equivalencias.desde_csv(equivalencias_csv)
+    from .config import DIR_CONFIG
+    plazas_equiv = Equivalencias.desde_csv(
+        DIR_CONFIG / "equivalencias_plazas.csv",
+        col_a="id_plaza_a", col_b="id_plaza_b")
 
     importaciones = [
         registra(ruta_aud, "inicial_auditoria", len(saldo_inicial)),
@@ -100,9 +105,20 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
         registra(ruta_bolsa, "bolsa_peoplenet", len(bolsa)),
     ]
 
+    # registro persistente de contratos (congela el alta en la 1ª aparición)
+    from .registro_contratos import RegistroContratos
+    ruta_registro = inic.parent / "estado" / "registro_contratos.csv"
+    registro = RegistroContratos.carga(ruta_registro)
+    registro.actualiza(contratos, datetime.now().date())
+    registro.guarda(ruta_registro)
+    if registro.nuevos:
+        print(f"Contratos nuevos en esta importación: {len(registro.nuevos)} "
+              f"(ver A4b, columna '¿Nuevo esta importación?').", file=sys.stderr)
+
     print("Conciliando…", file=sys.stderr)
     res = conciliar(saldo_inicial, propuestas, contratos, movimientos,
-                    saldo_actual, bolsa, equivalencias)
+                    saldo_actual, bolsa, equivalencias, plazas_equiv,
+                    info_contratos=registro.info())
 
     sello = datetime.now().strftime("%Y%m%d")
     dir_salida = Path(dir_salida)
@@ -112,6 +128,12 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
     exporta_recarga(res, ruta_rec)
 
     # resumen a consola
+    if res.devoluciones_cierre:
+        tot = sum(c["dias_devueltos"] for c in res.devoluciones_cierre)
+        print(f"\nDevoluciones por cierre de contrato (calculadas): "
+              f"{len(res.devoluciones_cierre)} contratos, {tot} días "
+              f"(ver pestaña A5b).", file=sys.stderr)
+
     print("\n=== SEMÁFORO ===", file=sys.stderr)
     for s in res.semaforo:
         print(f"  {s['clausula']}: {s['estado']}  "

@@ -14,6 +14,17 @@ def lee_csv(ruta, delimitador: str) -> list[dict]:
         return list(csv.DictReader(f, delimiter=delimitador))
 
 
+_NULOS = {"", "null", "[null]", "(null)", "none", "nan", "\\n"}
+
+
+def limpio(valor) -> str:
+    """Normaliza texto tratando marcadores de NULL como cadena vacía."""
+    if valor is None:
+        return ""
+    txt = str(valor).strip()
+    return "" if txt.lower() in _NULOS else txt
+
+
 def entero(valor, defecto: int = 0) -> int:
     """Convierte a int de forma tolerante ('', None, '  12 ' -> 12)."""
     if valor is None:

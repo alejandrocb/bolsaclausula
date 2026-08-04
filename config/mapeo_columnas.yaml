@@ -41,8 +41,8 @@ inicial_diario:
     clasificacion: clasificacion
 
 propuestas:
-  delimitador: "|"
-  formato_fecha: "%Y-%m-%d %H:%M:%S"
+  delimitador: "|"    # exportar SIN filtro de cláusula (Opción B): la cláusula
+  formato_fecha: "%Y-%m-%d %H:%M:%S"   # real la pone el contrato (puede ser NULL)
   columnas:
     propuesta_id: propuesta_id
     categoria_codigo: categoria_codigo
@@ -73,6 +73,11 @@ contratos:
     gfh_fin: "Fin GFH"
     gfh_id: "id. GFH1"
     gfh_nombre: "Nombre GFH"
+    comentario: "Comentario"   # enlace directo: "Solicitud contratacion <propuesta_id>"
+    # fechas de última actualización (alta = mínimo de las tres)
+    ua_periodo: "Última actualización Periodo"
+    ua_plaza: "Última actualización Plaza"
+    ua_puesto: "Última actualización Puesto"
 
 # Maestro (ID Plaza, ID GFH) -> División asignada (dirección real)
 divisiones:

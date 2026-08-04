@@ -63,7 +63,7 @@ Genera en `salidas/`:
 ## Pruebas
 
 ```bash
-python -m pytest -q        # 32 pruebas
+python -m pytest -q        # 43 pruebas
 ```
 
 Cubren: conteo inclusivo y topes de fecha; enlace propuesta↔contrato; los
@@ -88,7 +88,7 @@ vez).
 | 7 | Contrato cerrado: fin = min(fin propuesta, fin contrato, 31/12/2026) | `fechas.fin_computable` |
 | 8 | Devolución **prevista / registrada / pendiente** diferenciadas | `motor` + `MovimientosBolsa` |
 | 9 | Un contrato puede tener varias propuestas sucesivas (no 1:1) | `enlace.enlaza_propuesta` |
-| 10 | Enlace por IDRH/NIE + solape de fechas + plaza | `enlace`, `equivalencias` |
+| 10 | Enlace: **directo por comentario del contrato** ("Solicitud contratacion N") y, si no, heurístico IDRH/NIE + fechas + plaza (con equivalencias de plaza) | `enlace`, `cargas.propuesta_de_comentario` |
 | 11 | Contrato N91c/S9b1a sin propuesta = excepción | `enlace.contratos_sin_propuesta` |
 | 12 | Saldo negativo admisible por plaza; validación crítica a nivel Dirección+cláusula | `motor` (resumen) |
 | 13 | Exportaciones completas y solapadas: dedup por id, histórico, recálculo total | `importaciones` |
@@ -119,15 +119,26 @@ vez).
   cubierto para cuando haya movilidad. Pestaña `A3b_Direccion_distinta`. La
   división `FORM` (formación) no está en el corte y se marca como fila nueva.
 
-### Semáforo (días)
+### Semáforo (control de sobre-compromiso)
 
-| Cláusula | PeopleNet disponible | Reserva pend. sin contrato | Disponible tras compromisos | Estado |
-|----------|---------------------:|---------------------------:|----------------------------:|:------:|
-| **N91c** | 15.992 | 4.159 | **11.833** | 🟢 |
-| **S9b1a**| 50.475 | 5.449 | **45.026** | 🟢 |
+`PeopleNet usados` cuenta los **días completos comprometidos de los contratos**
+(hasta su fin o 31/12). PeopleNet **no conoce las propuestas**: lo único que
+añade compromiso y PeopleNet no ve son las **propuestas sin contrato** (reservas).
+El `sub_estado = MECANIZADA` no es fiable (se pone a mano, a veces en falso); lo
+que decide si algo está ejecutado en PeopleNet es la **presencia de contrato**.
 
-Ambas cláusulas mantienen disponibilidad positiva tras descontar las reservas
-comprometidas; ninguna deja PeopleNet a cero/negativo.
+```
+Contratación − ( Usados[contratos] + Reservas[sin contrato] ) = Margen tras compromisos
+```
+
+| Cláusula | Contratación | Usados | Reservas | Comprometido | **Margen** | Estado |
+|----------|-------------:|-------:|---------:|-------------:|-----------:|:------:|
+| **N91c** | 127.686 | 111.784 | 4.159 | 115.943 | **11.743** | 🟢 |
+| **S9b1a**| 240.069 | 189.306 | 4.947 | 194.253 | **45.816** | 🟢 |
+
+Mientras el margen sea positivo no hay sobre-compromiso. El `saldo de recarga`
+(distribución por plaza) es **otra contabilidad** y no debe restarse contra el
+global de PeopleNet.
 
 ### Diferencias cálculo vs Propuestas (para recargar)
 

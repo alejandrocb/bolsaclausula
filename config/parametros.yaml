@@ -19,6 +19,17 @@ prefijo_laboral: "L"
 estados_vivos:
   - "APROBADA"
 
+# Sub_estados que se consideran una APROBACIÓN FIRME. Una propuesta SIN contrato
+# localizado solo reserva/consume si su sub_estado está en esta lista. Si está
+# enlazada a un contrato, consume siempre (el contrato manda / ya mecanizada).
+# Vaciar la lista (o poner "*") = aceptar cualquier sub_estado aprobado.
+sub_estados_reserva_firme:
+  - "MECANIZADA"
+  - "COMPLETADA"
+  - "APROBADA_DIRECCION"
+  - "APROBADA_GERENCIA"
+  - "APROBADA_GESTION_PRESUPUESTARIA"
+
 # Estados de propuesta que liberan/no consumen.
 estados_anulados:
   - "ANULADA"

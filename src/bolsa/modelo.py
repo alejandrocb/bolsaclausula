@@ -76,6 +76,8 @@ class Contrato:
     fecha_fin: Optional[date]
     motivo_inicio: str
     tramos: list["TramoGFH"] = field(default_factory=list)
+    propuesta_ref: str = ""        # propuesta enlazada explícitamente (comentario)
+    alta: Optional[date] = None    # mín(últ. act. periodo/plaza/puesto) ≈ fecha de alta
 
     @property
     def cerrado(self) -> bool:
@@ -130,6 +132,8 @@ class Enlace:
     """Resultado de enlazar una propuesta con (0..n) contratos PeopleNet."""
     propuesta: Propuesta
     contratos: list[Contrato] = field(default_factory=list)
+    plaza_distinta: bool = False    # el contrato elegido está en otra plaza
+    enlace_directo: bool = False    # enlazado por comentario del contrato
 
     @property
     def enlazada(self) -> bool:

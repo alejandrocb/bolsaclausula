@@ -79,7 +79,12 @@ def valida_movimientos(
         elif p is None:
             problemas.append("propuesta inexistente en Propuestas")
         else:
-            if m.clausula and p.clausula and m.clausula != p.clausula:
+            # la cláusula real del contrato manda: no es anomalía si el
+            # movimiento coincide con la cláusula efectiva (regla 5)
+            det = det_by_id.get(m.propuesta_id)
+            efectiva = det.clausula_efectiva if det else p.clausula
+            if (m.clausula and p.clausula and m.clausula != p.clausula
+                    and m.clausula != efectiva):
                 problemas.append(f"cláusula mov={m.clausula} vs prop={p.clausula}")
             if m.id_plaza and p.id_plaza and m.id_plaza != p.id_plaza:
                 problemas.append(f"plaza mov={m.id_plaza} vs prop={p.id_plaza}")

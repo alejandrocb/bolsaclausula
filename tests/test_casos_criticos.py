@@ -64,6 +64,39 @@ def test_caso4_continuidad_varias_propuestas():
     assert all(e.enlazada for e in enlaces)   # ambas enlazan al mismo contrato
 
 
+# 4b) Reserva firme: sin contrato, solo consume si el sub_estado es aprobación firme
+def test_reserva_no_firme_sin_contrato_no_consume():
+    from bolsa.config import CONFIG
+    prev = CONFIG.parametros.get("sub_estados_reserva_firme")
+    CONFIG.parametros["sub_estados_reserva_firme"] = ["MECANIZADA", "APROBADA_DIRECCION"]
+    try:
+        # sub_estado no firme -> no computa (sin contrato)
+        p = propuesta(sub_estado="PENDIENTE_APROBACION_DIRECCION",
+                      inicio="2026-07-10", fin="2026-07-31")
+        det = computa_propuesta(p, _enlace(p), CORTE, LIMITE)
+        assert not det.computa
+        assert "no firme" in det.motivo_no_computa
+        # la misma con contrato SÍ computa (el contrato manda / ya mecanizada)
+        c = contrato(inicio="2026-07-10", fin=None, division="DEAP")
+        det2 = computa_propuesta(p, _enlace(p, [c]), CORTE, LIMITE)
+        assert det2.computa
+    finally:
+        CONFIG.parametros["sub_estados_reserva_firme"] = prev
+
+
+# 4c) Propuesta con cláusula VACÍA/NULL enlazada a contrato prioritario:
+# la cláusula real del contrato manda y sí computa (regla 5)
+def test_clausula_vacia_toma_la_del_contrato():
+    p = propuesta(clausula="", estado="APROBADA", sub_estado="MECANIZADA",
+                  autorizacion="2026-07-10", inicio="2026-07-10", fin="2026-07-31",
+                  idrh="42910568C")
+    c = contrato(idrh="42910568C", id_plaza="E071A2", clausula="N91c",
+                 inicio="2026-07-10", fin=None, division="DEAP")
+    det = computa_propuesta(p, _enlace(p, [c]), CORTE, LIMITE)
+    assert det.computa
+    assert det.clausula_efectiva == "N91c"
+
+
 # 5) Cláusula distinta: la real de PeopleNet manda
 def test_caso5_clausula_distinta():
     p = propuesta(clausula="S9b1a", inicio="2026-07-10", fin="2026-07-31")
