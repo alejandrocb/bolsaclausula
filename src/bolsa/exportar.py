@@ -107,21 +107,23 @@ def exporta_conciliacion(
     ], res.totales_clausula)
 
     # 4) Semáforo
-    ws = _hoja(wb, "4_Semaforo", [
+    cols_sem = [
         ("clausula", "Cláusula"),
         ("bolsa_oficial_contratacion", "PeopleNet contratación"),
-        ("bolsa_oficial_usados", "PeopleNet usados"),
+        ("bolsa_oficial_usados", "PeopleNet usados (contratos)"),
         ("disponible_peoplenet", "Disponible PeopleNet"),
-        ("reserva_pendiente_sin_contrato", "Reserva pend. sin contrato"),
-        ("disponible_tras_compromisos", "Disponible tras compromisos"),
-        ("saldo_calculado", "Saldo calculado"),
-        ("diferencia_calc_vs_peoplenet", "Dif. cálculo vs PeopleNet"),
+        ("reserva_pendiente_sin_contrato", "Reservas sin contrato"),
+        ("comprometido_total", "Comprometido total (usados+reservas)"),
+        ("disponible_tras_compromisos", "Margen tras compromisos"),
+        ("saldo_calculado_recarga", "Saldo recarga (por plaza)"),
         ("saldo_actual_propuestas", "Saldo actual Propuestas"),
         ("estado", "ESTADO"),
-    ], res.semaforo)
+    ]
+    ws = _hoja(wb, "4_Semaforo", cols_sem, res.semaforo)
+    col_estado = len(cols_sem)
     for i, s in enumerate(res.semaforo, start=2):
-        ws.cell(row=i, column=10).fill = _COLOR.get(s["estado"], _COLOR["SIN DATOS"])
-        ws.cell(row=i, column=10).font = Font(bold=True)
+        ws.cell(row=i, column=col_estado).fill = _COLOR.get(s["estado"], _COLOR["SIN DATOS"])
+        ws.cell(row=i, column=col_estado).font = Font(bold=True)
 
     # --- Auditoría ---
     dps = res.detalle_propuestas
@@ -139,6 +141,7 @@ def exporta_conciliacion(
             movimiento_importe=d.movimiento_importe, mecanizada=d.mecanizada,
             sub_estado=d.sub_estado,
             enlazada=d.enlazada, contrato_cerrado=d.contrato_cerrado,
+            enlace_directo=d.enlace_directo,
             direccion_declarada=d.direccion_declarada,
             direccion_efectiva=d.direccion_efectiva,
             dias_sin_tramo=d.dias_sin_tramo,
@@ -147,7 +150,7 @@ def exporta_conciliacion(
 
     cols_prop = [
         ("propuesta_id", "Propuesta"), ("idrh", "IDRH"), ("id_plaza", "ID Plaza"),
-        ("sub_estado", "Sub_estado"),
+        ("sub_estado", "Sub_estado"), ("enlace_directo", "Enlace directo"),
         ("direccion_declarada", "Dir. prop."), ("direccion_efectiva", "Dir. real"),
         ("clausula_declarada", "Cláusula prop."),
         ("clausula_efectiva", "Cláusula real"), ("fecha_inicio", "Inicio"),
@@ -199,6 +202,16 @@ def exporta_conciliacion(
     cierres = [dp(d) for d in dps if d.computa and d.contrato_cerrado
                and d.devolucion_prevista > 0]
     _hoja(wb, "A5_Cierres_devoluciones", cols_prop, cierres)
+
+    _hoja(wb, "A4b_Contratos_post_corte", [
+        ("idrh", "IDRH"), ("num_periodo", "Nº periodo"), ("id_plaza", "ID Plaza"),
+        ("clausula", "Cláusula"), ("inicio_plaza", "Inicio plaza"),
+        ("fin_plaza", "Fin plaza"), ("alta", "Alta (mín. 3 fechas)"),
+        ("propuesta_ref", "Propuesta (comentario)"),
+        ("alta_posterior_corte", "¿Alta ≥ 02/07?"),
+        ("enlazado_a_propuesta", "¿Enlaza propuesta viva?"),
+        ("incidencia", "Incidencia"),
+    ], res.contratos_post_corte)
 
     _hoja(wb, "A5b_Devoluciones_cierre", [
         ("propuesta_id", "Propuesta"), ("idrh", "IDRH"), ("id_plaza", "ID Plaza"),

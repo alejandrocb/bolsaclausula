@@ -65,6 +65,7 @@ class DetallePropuesta:
     direccion_distinta: bool = False
     dias_sin_tramo: int = 0            # días del periodo sin GFH que los cubra
     plaza_distinta: bool = False       # enlazada a contrato de plaza equivalente
+    enlace_directo: bool = False       # enlazada por comentario del contrato
 
 
 @dataclass
@@ -100,6 +101,7 @@ class ResultadoConciliacion:
     enlaces: list[Enlace] = field(default_factory=list)
     avisos_corte: list[str] = field(default_factory=list)
     devoluciones_cierre: list[dict] = field(default_factory=list)
+    contratos_post_corte: list[dict] = field(default_factory=list)
     validacion: object = None       # ResultadoValidacion (validación cruzada)
 
 
@@ -187,6 +189,7 @@ def computa_propuesta(
         sub_estado=prop.sub_estado,
         direccion_declarada=prop.direccion_codigo,
         plaza_distinta=enlace.plaza_distinta,
+        enlace_directo=enlace.enlace_directo,
     )
 
     # --- ¿computa en el cálculo? ---
@@ -356,6 +359,42 @@ def conciliar(
             devolucion_pendiente=max(0, dias - registrada),
         ))
 
+    # 2ter) auditoría del control: contratos prioritarios con inicio o alta
+    # posteriores al corte (mecanizados tras el 02/07, no en el control inicial).
+    # Los que NO enlacen con una propuesta que compute son un posible consumo
+    # no capturado por el control.
+    # cubierto = existe alguna propuesta VIVA (APROBADA) enlazada al contrato,
+    # ya sea posterior (computa) o pre-corte (ya en la base). El descuadre real
+    # es un contrato posterior SIN propuesta viva que lo respalde.
+    props_presentes = {p.propuesta_id for p in propuestas}
+    cubiertos = set()
+    for enl in enlaces:
+        if enl.propuesta.estado in config.estados_vivos:
+            for c0 in enl.contratos:
+                cubiertos.add((c0.idrh, c0.num_periodo))
+    for c in contratos:
+        if c.clausula not in prioritarias or config.es_laboral(c.id_plaza):
+            continue
+        inicio_post = c.fecha_inicio is not None and c.fecha_inicio > fecha_corte
+        if not inicio_post:      # el control es sobre inicio posterior al corte
+            continue
+        cubierto = (c.idrh, c.num_periodo) in cubiertos
+        if cubierto:
+            incidencia = ""
+        elif c.propuesta_ref and c.propuesta_ref not in props_presentes:
+            incidencia = f"referencia propuesta {c.propuesta_ref} no está en el export"
+        else:
+            incidencia = "sin propuesta localizada (posible consumo no capturado)"
+        res.contratos_post_corte.append(dict(
+            idrh=c.idrh, num_periodo=c.num_periodo, id_plaza=c.id_plaza,
+            clausula=c.clausula, inicio_plaza=str(c.fecha_inicio or ""),
+            fin_plaza=str(c.fecha_fin or ""), alta=str(c.alta or ""),
+            propuesta_ref=c.propuesta_ref,
+            alta_posterior_corte=(c.alta is not None and c.alta >= fecha_corte),
+            enlazado_a_propuesta=cubierto,
+            incidencia=incidencia,
+        ))
+
     # 3) saldo actual de Propuestas agregado a id_plaza
     sa_agg = defaultdict(int)
     for sa in saldo_actual:
@@ -464,16 +503,18 @@ def conciliar(
                 estado = "AMBAR"
             else:
                 estado = "VERDE"
+        usados = b.dias_usados if b else None
+        comprometido_total = (
+            usados + reserva_sin_contrato if usados is not None else None)
         res.semaforo.append(dict(
             clausula=cl,
             bolsa_oficial_contratacion=(b.dias_contratacion if b else None),
-            bolsa_oficial_usados=(b.dias_usados if b else None),
+            bolsa_oficial_usados=usados,
             disponible_peoplenet=disp_oficial,
             reserva_pendiente_sin_contrato=reserva_sin_contrato,
-            disponible_tras_compromisos=disp_tras,
-            saldo_calculado=saldo_calc,
-            diferencia_calc_vs_peoplenet=(
-                saldo_calc - disp_oficial if disp_oficial is not None else None),
+            comprometido_total=comprometido_total,       # usados (contratos) + reservas
+            disponible_tras_compromisos=disp_tras,        # = contratación − comprometido_total
+            saldo_calculado_recarga=saldo_calc,           # distribución por plaza (recarga)
             saldo_actual_propuestas=saldo_prop,
             estado=estado,
         ))
