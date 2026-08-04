@@ -47,10 +47,21 @@ def test_movimiento_sin_propuesta_es_anomalo():
 
 def test_movimiento_clausula_incoherente_es_anomalo():
     p = propuesta(pid="3", clausula="S9b1a")
-    d = _det(p)
+    d = _det(p)  # sin contrato -> efectiva = declarada S9b1a
     m = movimiento(mid="3", pid="3", clausula="N91c", tipo="NUEVA_SOLICITUD", importe=10)
     r = valida_movimientos([p], [m], [d], LIMITE)
     assert any("cláusula" in a.incidencias for a in r.anomalos)
+
+
+def test_movimiento_clausula_coincide_con_contrato_no_es_anomalo():
+    # propuesta S9b1a enlazada a contrato N91c -> el movimiento en N91c es correcto
+    p = propuesta(pid="4", clausula="S9b1a")
+    c = contrato(clausula="N91c", division="DEAP")
+    d = _det(p, [c])
+    assert d.clausula_efectiva == "N91c"
+    m = movimiento(mid="4", pid="4", clausula="N91c", tipo="NUEVA_SOLICITUD", importe=10)
+    r = valida_movimientos([p], [m], [d], LIMITE)
+    assert not any("cláusula" in a.incidencias for a in r.anomalos)
 
 
 def test_devolucion_registrada_no_pendiente():
