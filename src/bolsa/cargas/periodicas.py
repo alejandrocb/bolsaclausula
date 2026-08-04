@@ -1,6 +1,7 @@
 """Carga de los cinco ficheros periódicos (exportaciones completas)."""
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 
 from ..config import CONFIG
@@ -37,6 +38,26 @@ def carga_propuestas(ruta, config=CONFIG) -> list[Propuesta]:
             propuesta_sustituta_id=r.get(col["propuesta_sustituta_id"], "").strip(),
         ))
     return out
+
+
+_RE_PROP = re.compile(r'(?:solicitud\s+contrataci[oó]n|propuesta)\s*[:#]?\s*(\d+)', re.I)
+
+
+def propuesta_de_comentario(texto: str) -> str:
+    """Extrae el propuesta_id del comentario del contrato.
+
+    Formatos: "Solicitud contratacion 64008", "PROPUESTA 91239", o un número
+    suelto. Devuelve "" si no hay un id reconocible.
+    """
+    if not texto:
+        return ""
+    t = str(texto).strip()
+    m = _RE_PROP.search(t)
+    if m:
+        return m.group(1)
+    if t.isdigit():          # comentario que es solo el número de propuesta
+        return t
+    return ""
 
 
 def carga_contratos(
@@ -86,6 +107,15 @@ def carga_contratos(
                 division=division,
             ))
         tramos.sort(key=lambda t: (t.fecha_inicio or parse_fecha("1900-01-01")))
+        # enlace directo: primera propuesta referenciada en el comentario
+        propuesta_ref = ""
+        col_com = col.get("comentario")
+        if col_com:
+            for r in filas_c:
+                ref = propuesta_de_comentario(r.get(col_com, ""))
+                if ref:
+                    propuesta_ref = ref
+                    break
         out.append(Contrato(
             idrh=idrh,
             num_periodo=val(base, "num_periodo"),
@@ -95,6 +125,7 @@ def carga_contratos(
             fecha_fin=parse_fecha(base.get(col["fecha_fin"]), fmt),
             motivo_inicio=val(base, "motivo_inicio"),
             tramos=tramos,
+            propuesta_ref=propuesta_ref,
         ))
     return out
 

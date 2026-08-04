@@ -63,7 +63,7 @@ Genera en `salidas/`:
 ## Pruebas
 
 ```bash
-python -m pytest -q        # 32 pruebas
+python -m pytest -q        # 43 pruebas
 ```
 
 Cubren: conteo inclusivo y topes de fecha; enlace propuesta↔contrato; los
@@ -88,7 +88,7 @@ vez).
 | 7 | Contrato cerrado: fin = min(fin propuesta, fin contrato, 31/12/2026) | `fechas.fin_computable` |
 | 8 | Devolución **prevista / registrada / pendiente** diferenciadas | `motor` + `MovimientosBolsa` |
 | 9 | Un contrato puede tener varias propuestas sucesivas (no 1:1) | `enlace.enlaza_propuesta` |
-| 10 | Enlace por IDRH/NIE + solape de fechas + plaza (con **equivalencias de plaza** auditables, p.ej. E071A2↔E073A2) | `enlace`, `config/equivalencias_plazas.csv` |
+| 10 | Enlace: **directo por comentario del contrato** ("Solicitud contratacion N") y, si no, heurístico IDRH/NIE + fechas + plaza (con equivalencias de plaza) | `enlace`, `cargas.propuesta_de_comentario` |
 | 11 | Contrato N91c/S9b1a sin propuesta = excepción | `enlace.contratos_sin_propuesta` |
 | 12 | Saldo negativo admisible por plaza; validación crítica a nivel Dirección+cláusula | `motor` (resumen) |
 | 13 | Exportaciones completas y solapadas: dedup por id, histórico, recálculo total | `importaciones` |

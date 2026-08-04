@@ -23,22 +23,45 @@ def indexa_contratos(
     return idx
 
 
+def indexa_por_propuesta(contratos: list[Contrato]) -> dict[str, list[Contrato]]:
+    """Indexa contratos por la propuesta que referencian en el comentario."""
+    idx: dict[str, list[Contrato]] = defaultdict(list)
+    for c in contratos:
+        if c.propuesta_ref:
+            idx[c.propuesta_ref].append(c)
+    return idx
+
+
 def enlaza_propuesta(
     prop: Propuesta,
     idx_contratos: dict[str, list[Contrato]],
     equivalencias: Equivalencias,
     fecha_limite: date,
     plazas_equiv: Equivalencias | None = None,
+    idx_por_propuesta: dict[str, list[Contrato]] | None = None,
 ) -> Enlace:
     """Enlaza una propuesta con los contratos compatibles.
 
-    Criterio (regla 10): mismo idrh canónico + **misma plaza (o plaza
-    equivalente)** + solape de fechas. Las equivalencias de plaza permiten
-    tratar dos códigos como la misma categoría (p.ej. E071A2 ↔ E073A2), de forma
-    explícita y auditable, sin sobre-enlazar plazas no relacionadas.
-    Los candidatos se ordenan por proximidad de la fecha de inicio.
+    Enlace PRIMARIO: el contrato cuyo comentario referencia esta propuesta
+    ("Solicitud contratacion <id>"). Si no hay, se aplica el heurístico
+    (regla 10): mismo idrh canónico + misma plaza (o equivalente) + solape de
+    fechas. Las equivalencias de plaza tratan dos códigos como la misma
+    categoría (p.ej. E071A2 ↔ E073A2), auditable, sin sobre-enlazar.
     """
     enlace = Enlace(propuesta=prop)
+
+    # 1) enlace directo por comentario del contrato (el más fiable)
+    directos = list((idx_por_propuesta or {}).get(prop.propuesta_id, []))
+    if directos:
+        directos.sort(key=lambda c: (c.fecha_inicio or fecha_limite))
+        enlace.contratos = directos
+        enlace.enlace_directo = True
+        enlace.plaza_distinta = bool(
+            directos[0].id_plaza and prop.id_plaza
+            and directos[0].id_plaza != prop.id_plaza)
+        return enlace
+
+    # 2) heurístico
     if not prop.idrh:
         return enlace  # sin idrh no se puede enlazar (excepción)
     canon = equivalencias.canonico(prop.idrh)
@@ -81,8 +104,9 @@ def enlaza_todas(
     plazas_equiv: Equivalencias | None = None,
 ) -> list[Enlace]:
     idx = indexa_contratos(contratos, equivalencias)
+    idx_prop = indexa_por_propuesta(contratos)
     return [
-        enlaza_propuesta(p, idx, equivalencias, fecha_limite, plazas_equiv)
+        enlaza_propuesta(p, idx, equivalencias, fecha_limite, plazas_equiv, idx_prop)
         for p in propuestas
     ]
 

@@ -47,6 +47,8 @@ id. GFH1 | Nombre GFH`.
 - `Fin Plaza` vacío = contrato **abierto**; `Fin GFH` vacío = tramo abierto.
 - El formato real puede ser XLSX o ODS: **se autodetecta** por contenido.
 - **El contrato manda** sobre cláusula y dirección (regla 5).
+- `Comentario` suele traer **"Solicitud contratacion <propuesta_id>"**: enlace
+  DIRECTO contrato→propuesta (prioritario sobre el heurístico).
 
 ### Maestro `Divisiones_Plazas_GFHs.xlsx` — hoja `Hoja1`
 `ID Plaza | DG | ID GFH | División asignada | Nivel`.

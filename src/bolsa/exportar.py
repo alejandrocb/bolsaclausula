@@ -141,6 +141,7 @@ def exporta_conciliacion(
             movimiento_importe=d.movimiento_importe, mecanizada=d.mecanizada,
             sub_estado=d.sub_estado,
             enlazada=d.enlazada, contrato_cerrado=d.contrato_cerrado,
+            enlace_directo=d.enlace_directo,
             direccion_declarada=d.direccion_declarada,
             direccion_efectiva=d.direccion_efectiva,
             dias_sin_tramo=d.dias_sin_tramo,
@@ -149,7 +150,7 @@ def exporta_conciliacion(
 
     cols_prop = [
         ("propuesta_id", "Propuesta"), ("idrh", "IDRH"), ("id_plaza", "ID Plaza"),
-        ("sub_estado", "Sub_estado"),
+        ("sub_estado", "Sub_estado"), ("enlace_directo", "Enlace directo"),
         ("direccion_declarada", "Dir. prop."), ("direccion_efectiva", "Dir. real"),
         ("clausula_declarada", "Cláusula prop."),
         ("clausula_efectiva", "Cláusula real"), ("fecha_inicio", "Inicio"),

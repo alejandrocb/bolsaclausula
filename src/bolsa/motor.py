@@ -65,6 +65,7 @@ class DetallePropuesta:
     direccion_distinta: bool = False
     dias_sin_tramo: int = 0            # días del periodo sin GFH que los cubra
     plaza_distinta: bool = False       # enlazada a contrato de plaza equivalente
+    enlace_directo: bool = False       # enlazada por comentario del contrato
 
 
 @dataclass
@@ -187,6 +188,7 @@ def computa_propuesta(
         sub_estado=prop.sub_estado,
         direccion_declarada=prop.direccion_codigo,
         plaza_distinta=enlace.plaza_distinta,
+        enlace_directo=enlace.enlace_directo,
     )
 
     # --- ¿computa en el cálculo? ---
