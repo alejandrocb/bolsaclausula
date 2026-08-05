@@ -56,6 +56,18 @@ acumulan.
 6. **Recargar Propuestas** con `salidas/recarga_propuestas_<fecha>.xlsx`
    (incluye filas a 0 para permitir consumos futuros).
 
+7. **Consultar** `salidas/informe_<fecha>.html` (informe web local): un único
+   fichero que se abre en el navegador (doble clic), sin internet ni servidor.
+   Cuatro vistas para atender preguntas al vuelo:
+   - **Semáforo** y totales por cláusula.
+   - **Por Dirección**: cascada del saldo (postcontrol − consumo + devoluciones
+     ± ajuste = calculado) — «¿por qué me quedan tan pocos días?».
+   - **Por DNI/NIE**: propuestas, contratos y devoluciones del DNI, con
+     devolución *prevista* (calculada), *registrada* y *pendiente*.
+   - **Por Propuesta**: estado de la devolución — «¿ya hicieron el movimiento?».
+   > Contiene DNI/NIE: es un fichero **local**, no se publica ni se versiona
+   > (está en `salidas/`, ignorada por git).
+
 ## Controles antes de dar por buena una carga
 
 - `avisos_corte` vacío (el corte cuadra) — es una prueba automática.

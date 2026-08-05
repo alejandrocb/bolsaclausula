@@ -29,6 +29,7 @@ from .cargas.periodicas import (
 from .config import CONFIG
 from .equivalencias import Equivalencias
 from .exportar import exporta_conciliacion, exporta_recarga
+from .exportar_web import exporta_informe
 from .importaciones import dedup_movimientos, dedup_propuestas, registra
 from .motor import conciliar
 
@@ -124,8 +125,11 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
     dir_salida = Path(dir_salida)
     ruta_conc = dir_salida / f"conciliacion_{sello}.xlsx"
     ruta_rec = dir_salida / f"recarga_propuestas_{sello}.xlsx"
+    ruta_web = dir_salida / f"informe_{sello}.html"
     exporta_conciliacion(res, ruta_conc, saldo_inicial, equivalencias, importaciones)
     exporta_recarga(res, ruta_rec)
+    # informe HTML local para explorar los datos (contiene DNI -> no publicar)
+    exporta_informe(res, ruta_web, fecha=sello)
 
     # resumen a consola
     if res.devoluciones_cierre:
@@ -149,7 +153,9 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
 
     print(f"\nConciliación: {ruta_conc}", file=sys.stderr)
     print(f"Recarga:      {ruta_rec}", file=sys.stderr)
-    return {"conciliacion": ruta_conc, "recarga": ruta_rec, "resultado": res}
+    print(f"Informe web:  {ruta_web}  (ábrelo en el navegador)", file=sys.stderr)
+    return {"conciliacion": ruta_conc, "recarga": ruta_rec,
+            "informe": ruta_web, "resultado": res}
 
 
 def main(argv=None) -> int:
