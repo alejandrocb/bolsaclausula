@@ -1,9 +1,12 @@
 # Datos con información personal (DNI/NIE en idrh) — NO versionar (RGPD)
 /data/
-# Salidas generadas (workbooks XLSX de recarga y auditoría)
+# Salidas generadas (workbooks XLSX de recarga y auditoría, informe HTML local)
 /salidas/
 *.xlsx
 !tests/fixtures/**/*.xlsx
+
+# Bundles de entrega (git bundle) — artefactos de transporte, no fuente
+*.bundle
 
 # Python
 __pycache__/
