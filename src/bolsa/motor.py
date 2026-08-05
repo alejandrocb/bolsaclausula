@@ -67,6 +67,14 @@ class DetallePropuesta:
     dias_sin_tramo: int = 0            # días del periodo sin GFH que los cubra
     plaza_distinta: bool = False       # enlazada a contrato de plaza equivalente
     enlace_directo: bool = False       # enlazada por comentario del contrato
+    # coherencia del enlace directo (¿el contrato referenciado corresponde?)
+    contrato_idrh: str = ""            # DNI del contrato enlazado
+    contrato_inicio: Optional[date] = None
+    contrato_plaza: str = ""
+    coh_dni: str = ""                  # ok | distinto | nie_dni | sin_dni
+    coh_fecha: str = ""                # ok | distinto
+    coh_plaza: str = ""                # ok | distinto | laboral_estatutario
+    coherencia_ok: bool = True         # False si algún eje no cuadra (revisar)
 
 
 @dataclass
@@ -141,12 +149,44 @@ def reparte_dias(inicio: Optional[date], fin: Optional[date], tramos) -> tuple[d
     return dict(reparto), restante
 
 
+def _es_nie(doc: str) -> bool:
+    return bool(doc) and doc[0].upper() in ("X", "Y", "Z")
+
+
+def _coherencia_directo(prop, contrato, equivalencias, plazas_equiv):
+    """Verifica que el contrato enlazado por comentario corresponde con la
+    propuesta en DNI (con equivalencias NIE↔DNI), fecha de inicio y plaza.
+    Devuelve (coh_dni, coh_fecha, coh_plaza)."""
+    # DNI
+    if not prop.idrh:
+        coh_dni = "sin_dni"
+    elif equivalencias.mismos(prop.idrh, contrato.idrh) or prop.idrh == contrato.idrh:
+        coh_dni = "ok"
+    elif _es_nie(prop.idrh) != _es_nie(contrato.idrh):
+        coh_dni = "nie_dni"      # uno es NIE y otro DNI: posible cambio de documento
+    else:
+        coh_dni = "distinto"
+    # fecha de inicio
+    coh_fecha = "ok" if prop.fecha_inicio == contrato.fecha_inicio else "distinto"
+    # plaza
+    pp, pc = prop.id_plaza, contrato.id_plaza
+    if not pp or not pc or pp == pc or (plazas_equiv and plazas_equiv.mismos(pp, pc)):
+        coh_plaza = "ok"
+    elif pp[1:] == pc[1:] and {pp[0].upper(), pc[0].upper()} == {"L", "E"}:
+        coh_plaza = "laboral_estatutario"   # misma categoría, laboral vs estatutaria
+    else:
+        coh_plaza = "distinto"
+    return coh_dni, coh_fecha, coh_plaza
+
+
 def computa_propuesta(
     prop: Propuesta,
     enlace: Enlace,
     fecha_corte: date,
     fecha_limite: date,
     config=CONFIG,
+    equivalencias: Optional[Equivalencias] = None,
+    plazas_equiv: Optional[Equivalencias] = None,
 ) -> DetallePropuesta:
     """Calcula el consumo/devolución de UNA propuesta (función pura y testeable)."""
     laboral = config.es_laboral(prop.id_plaza)
@@ -197,6 +237,17 @@ def computa_propuesta(
         plaza_distinta=enlace.plaza_distinta,
         enlace_directo=enlace.enlace_directo,
     )
+
+    # coherencia del enlace directo: ¿el contrato referenciado corresponde?
+    if enlace.enlace_directo and contrato is not None:
+        det.contrato_idrh = contrato.idrh
+        det.contrato_inicio = contrato.fecha_inicio
+        det.contrato_plaza = contrato.id_plaza
+        det.coh_dni, det.coh_fecha, det.coh_plaza = _coherencia_directo(
+            prop, contrato, equivalencias or Equivalencias(), plazas_equiv)
+        det.coherencia_ok = (det.coh_dni in ("ok", "sin_dni")
+                             and det.coh_fecha == "ok"
+                             and det.coh_plaza == "ok")
 
     # --- ¿computa en el cálculo? ---
     prioritarias = config.clausulas_prioritarias
@@ -278,7 +329,8 @@ def conciliar(
 
     for enl in enlaces:
         prop = enl.propuesta
-        det = computa_propuesta(prop, enl, fecha_corte, fecha_limite, config)
+        det = computa_propuesta(prop, enl, fecha_corte, fecha_limite, config,
+                                equivalencias, plazas_equiv)
         det.devolucion_registrada = devol_mov.get(prop.propuesta_id, 0)
         det.movimiento_importe = imp_mov.get(prop.propuesta_id, 0)
         det.devolucion_pendiente = max(0, det.devolucion_prevista - det.devolucion_registrada)

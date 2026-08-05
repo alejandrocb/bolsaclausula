@@ -309,6 +309,41 @@ def exporta_conciliacion(
             ("clausula", "Cláusula"), ("incidencias", "Incidencias"),
         ], [vars(a) for a in val.anomalos])
 
+    # A12 Coherencia del enlace directo (por comentario del contrato):
+    # ¿el contrato referenciado corresponde en DNI, fecha de inicio y plaza?
+    _ETIQ_COH = {
+        "distinto": "DISTINTO", "nie_dni": "NIE↔DNI (posible mismo)",
+        "laboral_estatutario": "L↔E (misma categoría)",
+    }
+    incoh = []
+    for d in res.detalle_propuestas:
+        if not d.enlace_directo or d.coherencia_ok:
+            continue
+        probl = []
+        if d.coh_dni not in ("ok", "sin_dni"):
+            probl.append(f"DNI {_ETIQ_COH.get(d.coh_dni, d.coh_dni)}")
+        if d.coh_fecha != "ok":
+            probl.append("FECHA INICIO distinta")
+        if d.coh_plaza != "ok":
+            probl.append(f"PLAZA {_ETIQ_COH.get(d.coh_plaza, d.coh_plaza)}")
+        incoh.append(dict(
+            propuesta_id=d.propuesta_id,
+            idrh_prop=d.idrh, idrh_contrato=d.contrato_idrh,
+            inicio_prop=str(d.fecha_inicio or ""),
+            inicio_contrato=str(d.contrato_inicio or ""),
+            plaza_prop=d.id_plaza, plaza_contrato=d.contrato_plaza,
+            clausula=d.clausula_efectiva, computa="sí" if d.computa else "no",
+            incidencias=" · ".join(probl),
+        ))
+    _hoja(wb, "A12_Coherencia_enlace_directo", [
+        ("propuesta_id", "Propuesta"),
+        ("idrh_prop", "DNI propuesta"), ("idrh_contrato", "DNI contrato"),
+        ("inicio_prop", "Inicio propuesta"), ("inicio_contrato", "Inicio contrato"),
+        ("plaza_prop", "Plaza propuesta"), ("plaza_contrato", "Plaza contrato"),
+        ("clausula", "Cláusula"), ("computa", "¿Computa?"),
+        ("incidencias", "Incidencias"),
+    ], incoh)
+
     Path(ruta).parent.mkdir(parents=True, exist_ok=True)
     wb.save(ruta)
     return Path(ruta)

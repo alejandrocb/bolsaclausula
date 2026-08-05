@@ -20,7 +20,8 @@ from .motor import ResultadoConciliacion
 def _datos(res: ResultadoConciliacion) -> dict:
     dps = res.detalle_propuestas
     relevantes = [d for d in dps if d.computa or d.movimiento_importe
-                  or d.devolucion_registrada]
+                  or d.devolucion_registrada
+                  or (d.enlace_directo and not d.coherencia_ok)]
 
     def prop(d):
         return dict(
@@ -38,6 +39,9 @@ def _datos(res: ResultadoConciliacion) -> dict:
             enlazada=d.enlazada, enlace_directo=d.enlace_directo,
             contrato_cerrado=d.contrato_cerrado, computa=d.computa,
             sub_estado=d.sub_estado, motivo=d.motivo_no_computa,
+            coh_ok=d.coherencia_ok, coh_dni=d.coh_dni, coh_fecha=d.coh_fecha,
+            coh_plaza=d.coh_plaza, c_idrh=d.contrato_idrh,
+            c_inicio=str(d.contrato_inicio or ""), c_plaza=d.contrato_plaza,
         )
 
     def fila(f):
@@ -100,6 +104,7 @@ th{color:var(--mut);font-weight:600;background:#fafbfc;position:sticky;top:0}
 .leg{color:var(--mut);font-size:12px;margin:8px 0 0;line-height:1.9}
 .tag[title]{cursor:help}
 .ast{color:var(--amber);font-weight:700;cursor:help;margin-left:1px}
+.warn{color:var(--amber);font-weight:700;cursor:help;margin-left:4px}
 .legend{font-size:12px;color:var(--mut)}.legend b{color:var(--ink)}
 .empty{color:var(--mut);padding:18px;text-align:center}
 </style></head><body>
@@ -121,8 +126,18 @@ function tag(txt,cls,title){return `<span class="tag ${cls}"${title?` title="${t
 const ENL_T={directo:"Enlazada al contrato por su comentario en PeopleNet (\"Solicitud contratacion N\"): referencia explícita.",
   heuristico:"Sin referencia explícita en el contrato; enlace deducido por coincidencia de DNI/NIE + fechas + plaza.",
   sincontrato:"No se encontró contrato: la propuesta reserva días pero aún no está mecanizada en PeopleNet."};
-function enlTag(p){return !p.enlazada?tag("sin contrato","a",ENL_T.sincontrato)
-  :(p.enlace_directo?tag("directo","g",ENL_T.directo):tag("heurístico","n",ENL_T.heuristico));}
+const COH_T={distinto:"DISTINTO",nie_dni:"NIE↔DNI (posible mismo)",laboral_estatutario:"L↔E (misma categoría)"};
+function cohMsg(p){const x=[];
+  if(p.coh_dni&&p.coh_dni!=="ok"&&p.coh_dni!=="sin_dni")x.push("DNI "+(COH_T[p.coh_dni]||p.coh_dni)+` (${p.idrh}→${p.c_idrh})`);
+  if(p.coh_fecha&&p.coh_fecha!=="ok")x.push(`fecha inicio distinta (${p.inicio}→${p.c_inicio})`);
+  if(p.coh_plaza&&p.coh_plaza!=="ok")x.push("plaza "+(COH_T[p.coh_plaza]||p.coh_plaza)+` (${p.id_plaza}→${p.c_plaza})`);
+  return x.join(" · ");}
+function enlTag(p){
+  if(!p.enlazada)return tag("sin contrato","a",ENL_T.sincontrato);
+  if(!p.enlace_directo)return tag("heurístico","n",ENL_T.heuristico);
+  const base=tag("directo","g",ENL_T.directo);
+  return (p.coh_ok===false)?base+`<span class="warn" title="Revisar: ${cohMsg(p)}">⚠</span>`:base;
+}
 const DNI_C_T="DNI tomado del contrato: la propuesta se exportó sin IDRH (aún no asignado). El enlace al contrato aporta el DNI.";
 const dniCell=p=>p.idrh?(p.idrh_de_contrato?`${p.idrh}<span class="ast" title="${DNI_C_T}">*</span>`:p.idrh):"";
 const LEG_ENL=`<p class="leg"><b>Enlace:</b> `
@@ -250,6 +265,16 @@ function renderProp(){
     <tr><th class="l">Dirección prop → real</th><td class="l">${p.dir_prop} ${p.dir_real&&p.dir_real!==p.dir_prop?"→ "+p.dir_real:""}</td><th class="l">Enlace</th><td class="l">${p.enlazada?(p.enlace_directo?"directo (comentario)":"heurístico"):"sin contrato"}</td></tr>
     <tr><th class="l">Inicio</th><td class="l">${p.inicio}</td><th class="l">Fin reservado / computable</th><td class="l">${p.reserva_fin} / ${p.efectivo_fin}</td></tr>
     <tr><th class="l">¿Computa?</th><td class="l">${p.computa?"sí":"no — "+p.motivo}</td><th class="l">Σ movimientos reales</th><td class="l">${eur(p.mov_importe)}</td></tr></table>`;
+  if(p.enlace_directo){
+    const okv=v=>v==="ok"?tag("coincide","g"):v==="sin_dni"?tag("s/DNI en propuesta","n"):tag(COH_T[v]||v,"a");
+    h+=`<h3>Coherencia del enlace directo</h3>
+     <p class="hint">El contrato se enlazó por su comentario. Se comprueba que corresponde con la propuesta:</p>
+     <table><tr><th class="l">Eje</th><th class="l">Propuesta</th><th class="l">Contrato</th><th class="l">Resultado</th></tr>
+      <tr><td class="l">DNI</td><td class="l">${p.idrh||"—"}</td><td class="l">${p.c_idrh||"—"}</td><td class="l">${okv(p.coh_dni)}</td></tr>
+      <tr><td class="l">Fecha inicio</td><td class="l">${p.inicio}</td><td class="l">${p.c_inicio||"—"}</td><td class="l">${okv(p.coh_fecha)}</td></tr>
+      <tr><td class="l">ID Plaza</td><td class="l">${p.id_plaza}</td><td class="l">${p.c_plaza||"—"}</td><td class="l">${okv(p.coh_plaza)}</td></tr>
+     </table>`;
+  }
   if(cierre){h+=`<h3>Devolución por cierre</h3><p>El contrato (periodo ${cierre.contrato_periodo}) cerró el <b>${cierre.contrato_fin}</b>, estaba reservado hasta ${cierre.reservado_hasta} → <b>${eur(cierre.dias_devueltos)}</b> días a devolver; registrados ${eur(cierre.devolucion_registrada)}, pendientes ${eur(cierre.devolucion_pendiente)}.</p>`}
   out.innerHTML=h;
 }

@@ -52,6 +52,11 @@ acumulan.
    - Pestañas `A1`–`A9`: reservas, mecanizadas sin contrato, cláusula distinta,
      contratos sin propuesta, cierres/devoluciones, movimientos, auditoría del
      corte, importaciones/equivalencias y excepciones.
+   - `A12_Coherencia_enlace_directo`: enlaces por comentario cuyo contrato **no
+     corresponde** con la propuesta en DNI, fecha de inicio o plaza. Casos:
+     `NIE↔DNI` (probable mismo — registrar equivalencia), `L↔E` (misma
+     categoría laboral/estatutaria), `DISTINTO`/`FECHA distinta` (revisar
+     posible error). En el informe web salen con `⚠` y su desglose.
 
 6. **Recargar Propuestas** con `salidas/recarga_propuestas_<fecha>.xlsx`
    (incluye filas a 0 para permitir consumos futuros).

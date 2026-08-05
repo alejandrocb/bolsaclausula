@@ -60,6 +60,33 @@ def test_dni_efectivo_del_contrato_si_propuesta_sin_idrh():
     assert det.idrh_efectivo == "42412113K"    # se toma del contrato
 
 
+def test_coherencia_directo_detecta_nie_dni_y_plaza():
+    # enlace directo cuyo contrato NO corresponde: DNI (NIE vs DNI) y plaza L↔E
+    p = propuesta(pid="700", id_plaza="L084C2", direccion="DEAE",
+                  clausula="N91c", idrh="Y0360278C",
+                  inicio="2026-08-01", fin="2026-10-31")
+    c = _contrato("79255113B", "E084C2", "N91c", "2026-08-01", "2026-10-31",
+                  "DEAE", prop_ref="700")
+    enl = enlaza_todas([p], [c], Equivalencias(), LIM)[0]
+    det = computa_propuesta(p, enl, date(2026, 7, 2), LIM)
+    assert det.coh_dni == "nie_dni"                 # Y... (NIE) vs 79... (DNI)
+    assert det.coh_fecha == "ok"
+    assert det.coh_plaza == "laboral_estatutario"   # L084C2 vs E084C2
+    assert det.coherencia_ok is False
+
+
+def test_coherencia_directo_ok_cuando_todo_cuadra():
+    p = propuesta(pid="701", id_plaza="E071A2", direccion="DEAP",
+                  clausula="S9b1a", idrh="12345678Z",
+                  inicio="2026-07-10", fin="2026-08-31")
+    c = _contrato("12345678Z", "E071A2", "S9b1a", "2026-07-10", "2026-08-31",
+                  "DEAP", prop_ref="701")
+    enl = enlaza_todas([p], [c], Equivalencias(), LIM)[0]
+    det = computa_propuesta(p, enl, date(2026, 7, 2), LIM)
+    assert (det.coh_dni, det.coh_fecha, det.coh_plaza) == ("ok", "ok", "ok")
+    assert det.coherencia_ok is True
+
+
 def test_sin_referencia_usa_heuristico():
     p = propuesta(pid="500", id_plaza="E071A2", direccion="DEAP",
                   clausula="S9b1a", idrh="12345678Z",
