@@ -120,6 +120,11 @@ const eur = n => {
   const s = Math.abs(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   return (x<0?"-":"")+s;   // agrupa siempre cada 3 dígitos (también 1.234)
 };
+const fd = s => {          // fecha ISO (AAAA-MM-DD) -> DD/MM/AAAA
+  if(!s) return "";
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  return m?`${m[3]}/${m[2]}/${m[1]}`:s;
+};
 const el = (h)=>{const d=document.createElement("div");d.innerHTML=h;return d.firstElementChild;};
 const clauSel = (id)=>`<select id="${id}"><option value="N91c">N91c (refuerzos)</option><option value="S9b1a">S9b1a (sustituciones)</option></select>`;
 function tag(txt,cls,title){return `<span class="tag ${cls}"${title?` title="${title}"`:""}>${txt}</span>`}
@@ -129,7 +134,7 @@ const ENL_T={directo:"Enlazada al contrato por su comentario en PeopleNet (\"Sol
 const COH_T={distinto:"DISTINTO",nie_dni:"NIE↔DNI (posible mismo)",laboral_estatutario:"L↔E (misma categoría)"};
 function cohMsg(p){const x=[];
   if(p.coh_dni&&p.coh_dni!=="ok"&&p.coh_dni!=="sin_dni")x.push("DNI "+(COH_T[p.coh_dni]||p.coh_dni)+` (${p.idrh}→${p.c_idrh})`);
-  if(p.coh_fecha&&p.coh_fecha!=="ok")x.push(`fecha inicio distinta (${p.inicio}→${p.c_inicio})`);
+  if(p.coh_fecha&&p.coh_fecha!=="ok")x.push(`fecha inicio distinta (${fd(p.inicio)}→${fd(p.c_inicio)})`);
   if(p.coh_plaza&&p.coh_plaza!=="ok")x.push("plaza "+(COH_T[p.coh_plaza]||p.coh_plaza)+` (${p.id_plaza}→${p.c_plaza})`);
   return x.join(" · ");}
 function enlTag(p){
@@ -208,7 +213,7 @@ function filaProp(p){
   const cd=p.clau_prop!==p.clau_real?`${p.clau_prop}→<b>${p.clau_real}</b>`:p.clau_real;
   const enl=enlTag(p);
   const dp=p.devol_pendiente>0?`<span class="neg">${eur(p.devol_pendiente)}</span>`:eur(p.devol_pendiente);
-  return `<tr><td class="l">${p.propuesta_id}</td><td class="l">${dniCell(p)}</td><td class="l">${p.id_plaza}</td><td class="l">${cd}</td><td>${p.inicio}</td><td>${p.efectivo_fin}</td><td>${eur(p.consumo_neto)}</td><td>${eur(p.devol_prevista)}</td><td>${eur(p.devol_registrada)}</td><td>${dp}</td><td class="l">${enl}</td></tr>`;
+  return `<tr><td class="l">${p.propuesta_id}</td><td class="l">${dniCell(p)}</td><td class="l">${p.id_plaza}</td><td class="l">${cd}</td><td>${fd(p.inicio)}</td><td>${fd(p.efectivo_fin)}</td><td>${eur(p.consumo_neto)}</td><td>${eur(p.devol_prevista)}</td><td>${eur(p.devol_registrada)}</td><td>${dp}</td><td class="l">${enl}</td></tr>`;
 }
 
 // ---- vista DNI ----
@@ -230,11 +235,11 @@ function renderDni(){
   for(const p of ps){const cd=p.clau_prop!==p.clau_real?`${p.clau_prop}→<b>${p.clau_real}</b>`:p.clau_real;
     const enl=enlTag(p);
     const dp=p.devol_pendiente>0?`<span class="neg">${eur(p.devol_pendiente)}</span>`:eur(p.devol_pendiente);
-    h+=`<tr><td class="l">${p.propuesta_id}</td><td class="l">${p.id_plaza}</td><td class="l">${p.dir_real||p.dir_prop}</td><td class="l">${cd}</td><td>${p.inicio}</td><td>${p.reserva_fin}</td><td>${p.efectivo_fin}</td><td>${eur(p.consumo_neto)}</td><td>${eur(p.devol_prevista)}</td><td>${eur(p.devol_registrada)}</td><td>${dp}</td><td class="l">${enl}</td></tr>`}
+    h+=`<tr><td class="l">${p.propuesta_id}</td><td class="l">${p.id_plaza}</td><td class="l">${p.dir_real||p.dir_prop}</td><td class="l">${cd}</td><td>${fd(p.inicio)}</td><td>${fd(p.reserva_fin)}</td><td>${fd(p.efectivo_fin)}</td><td>${eur(p.consumo_neto)}</td><td>${eur(p.devol_prevista)}</td><td>${eur(p.devol_registrada)}</td><td>${dp}</td><td class="l">${enl}</td></tr>`}
   h+=`</table></div>`+LEG_ENL;
   if(cs.length){h+=`<h3>Devoluciones por cierre de contrato (contrato terminó antes de 31/12)</h3><div class="scroll"><table><tr><th class="l">Propuesta</th><th class="l">Plaza</th><th class="l">Cláu.</th><th>Nº periodo</th><th>Cierre</th><th>Reservado hasta</th><th>Días a devolver (calc.)</th><th>Ya registrado</th><th>Pendiente</th></tr>`;
     for(const c of cs){const pend=c.devolucion_pendiente>0;
-      h+=`<tr><td class="l">${c.propuesta_id}</td><td class="l">${c.id_plaza}</td><td class="l">${c.clausula}</td><td>${c.contrato_periodo}</td><td>${c.contrato_fin}</td><td>${c.reservado_hasta}</td><td><b>${eur(c.dias_devueltos)}</b></td><td>${eur(c.devolucion_registrada)}</td><td>${pend?tag(eur(c.devolucion_pendiente)+" pend.","a"):tag("hecho","g")}</td></tr>`}
+      h+=`<tr><td class="l">${c.propuesta_id}</td><td class="l">${c.id_plaza}</td><td class="l">${c.clausula}</td><td>${c.contrato_periodo}</td><td>${fd(c.contrato_fin)}</td><td>${fd(c.reservado_hasta)}</td><td><b>${eur(c.dias_devueltos)}</b></td><td>${eur(c.devolucion_registrada)}</td><td>${pend?tag(eur(c.devolucion_pendiente)+" pend.","a"):tag("hecho","g")}</td></tr>`}
     h+=`</table></div>`;}
   out.innerHTML=h;
 }
@@ -263,7 +268,7 @@ function renderProp(){
    <table style="margin-top:8px">
     <tr><th class="l">DNI</th><td class="l">${dniCell(p)}</td><th class="l">Plaza</th><td class="l">${p.id_plaza}</td></tr>
     <tr><th class="l">Dirección prop → real</th><td class="l">${p.dir_prop} ${p.dir_real&&p.dir_real!==p.dir_prop?"→ "+p.dir_real:""}</td><th class="l">Enlace</th><td class="l">${p.enlazada?(p.enlace_directo?"directo (comentario)":"heurístico"):"sin contrato"}</td></tr>
-    <tr><th class="l">Inicio</th><td class="l">${p.inicio}</td><th class="l">Fin reservado / computable</th><td class="l">${p.reserva_fin} / ${p.efectivo_fin}</td></tr>
+    <tr><th class="l">Inicio</th><td class="l">${fd(p.inicio)}</td><th class="l">Fin reservado / computable</th><td class="l">${fd(p.reserva_fin)} / ${fd(p.efectivo_fin)}</td></tr>
     <tr><th class="l">¿Computa?</th><td class="l">${p.computa?"sí":"no — "+p.motivo}</td><th class="l">Σ movimientos reales</th><td class="l">${eur(p.mov_importe)}</td></tr></table>`;
   if(p.enlace_directo){
     const okv=v=>v==="ok"?tag("coincide","g"):v==="sin_dni"?tag("s/DNI en propuesta","n"):tag(COH_T[v]||v,"a");
@@ -271,11 +276,11 @@ function renderProp(){
      <p class="hint">El contrato se enlazó por su comentario. Se comprueba que corresponde con la propuesta:</p>
      <table><tr><th class="l">Eje</th><th class="l">Propuesta</th><th class="l">Contrato</th><th class="l">Resultado</th></tr>
       <tr><td class="l">DNI</td><td class="l">${p.idrh||"—"}</td><td class="l">${p.c_idrh||"—"}</td><td class="l">${okv(p.coh_dni)}</td></tr>
-      <tr><td class="l">Fecha inicio</td><td class="l">${p.inicio}</td><td class="l">${p.c_inicio||"—"}</td><td class="l">${okv(p.coh_fecha)}</td></tr>
+      <tr><td class="l">Fecha inicio</td><td class="l">${fd(p.inicio)}</td><td class="l">${fd(p.c_inicio)||"—"}</td><td class="l">${okv(p.coh_fecha)}</td></tr>
       <tr><td class="l">ID Plaza</td><td class="l">${p.id_plaza}</td><td class="l">${p.c_plaza||"—"}</td><td class="l">${okv(p.coh_plaza)}</td></tr>
      </table>`;
   }
-  if(cierre){h+=`<h3>Devolución por cierre</h3><p>El contrato (periodo ${cierre.contrato_periodo}) cerró el <b>${cierre.contrato_fin}</b>, estaba reservado hasta ${cierre.reservado_hasta} → <b>${eur(cierre.dias_devueltos)}</b> días a devolver; registrados ${eur(cierre.devolucion_registrada)}, pendientes ${eur(cierre.devolucion_pendiente)}.</p>`}
+  if(cierre){h+=`<h3>Devolución por cierre</h3><p>El contrato (periodo ${cierre.contrato_periodo}) cerró el <b>${fd(cierre.contrato_fin)}</b>, estaba reservado hasta ${fd(cierre.reservado_hasta)} → <b>${eur(cierre.dias_devueltos)}</b> días a devolver; registrados ${eur(cierre.devolucion_registrada)}, pendientes ${eur(cierre.devolucion_pendiente)}.</p>`}
   out.innerHTML=h;
 }
 
@@ -289,7 +294,8 @@ function draw(){
   if(cur===2){const i=document.getElementById("dni");i.onkeydown=e=>{if(e.key==="Enter")renderDni()};i.focus();}
   if(cur===3){const i=document.getElementById("pid");i.onkeydown=e=>{if(e.key==="Enter")renderProp()};i.focus();}
 }
-document.getElementById("fecha").textContent=DATA.fecha||"";
+document.getElementById("fecha").textContent=
+  (/^\d{8}$/.test(DATA.fecha||"")?`${DATA.fecha.slice(6,8)}/${DATA.fecha.slice(4,6)}/${DATA.fecha.slice(0,4)}`:(DATA.fecha||""));
 draw();
 </script></body></html>"""
 
