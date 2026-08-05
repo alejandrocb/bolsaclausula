@@ -96,6 +96,8 @@ th{color:var(--mut);font-weight:600;background:#fafbfc;position:sticky;top:0}
 .kpi{flex:1;min-width:150px;background:#fafbfc;border:1px solid var(--line);border-radius:8px;padding:10px}
 .kpi .v{font-size:22px;font-weight:700}.kpi .k{font-size:11px;color:var(--mut);text-transform:uppercase}
 .muted{color:var(--mut)}.hint{color:var(--mut);font-size:12px;margin:2px 0 10px}
+.leg{color:var(--mut);font-size:12px;margin:8px 0 0;line-height:1.9}
+.tag[title]{cursor:help}
 .legend{font-size:12px;color:var(--mut)}.legend b{color:var(--ink)}
 .empty{color:var(--mut);padding:18px;text-align:center}
 </style></head><body>
@@ -104,10 +106,25 @@ th{color:var(--mut);font-weight:600;background:#fafbfc;position:sticky;top:0}
 <nav id="nav"></nav><main id="app"></main>
 <script>
 const DATA = __DATA__;
-const eur = n => (n==null||n==="")?"":Number(n).toLocaleString("es-ES");
+const eur = n => {
+  if(n==null||n==="") return "";
+  const x = Math.round(Number(n));
+  if(!isFinite(x)) return "";
+  const s = Math.abs(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return (x<0?"-":"")+s;   // agrupa siempre cada 3 dígitos (también 1.234)
+};
 const el = (h)=>{const d=document.createElement("div");d.innerHTML=h;return d.firstElementChild;};
 const clauSel = (id)=>`<select id="${id}"><option value="N91c">N91c (refuerzos)</option><option value="S9b1a">S9b1a (sustituciones)</option></select>`;
-function tag(txt,cls){return `<span class="tag ${cls}">${txt}</span>`}
+function tag(txt,cls,title){return `<span class="tag ${cls}"${title?` title="${title}"`:""}>${txt}</span>`}
+const ENL_T={directo:"Enlazada al contrato por su comentario en PeopleNet (\"Solicitud contratacion N\"): referencia explícita.",
+  heuristico:"Sin referencia explícita en el contrato; enlace deducido por coincidencia de DNI/NIE + fechas + plaza.",
+  sincontrato:"No se encontró contrato: la propuesta reserva días pero aún no está mecanizada en PeopleNet."};
+function enlTag(p){return !p.enlazada?tag("sin contrato","a",ENL_T.sincontrato)
+  :(p.enlace_directo?tag("directo","g",ENL_T.directo):tag("heurístico","n",ENL_T.heuristico));}
+const LEG_ENL=`<p class="leg"><b>Enlace:</b> `
+  +tag("directo","g",ENL_T.directo)+` propuesta↔contrato por el comentario del contrato · `
+  +tag("heurístico","n",ENL_T.heuristico)+` deducido por DNI/NIE + fechas + plaza (sin referencia explícita) · `
+  +tag("sin contrato","a",ENL_T.sincontrato)+` reserva sin contrato mecanizado.</p>`;
 function siNo(b){return b?tag("sí","g"):tag("no","n")}
 
 // ---- vista semáforo ----
@@ -164,12 +181,12 @@ function renderDir(){
   const pr=DATA.propuestas.filter(p=>p.computa&&(p.clau_real===clau)&&(p.dir_prop===dir||(p.dir_real||"").includes(dir)));
   let tpr=`<h3>Movimientos (propuestas que computan) — ${pr.length}</h3><div class="scroll"><table><tr><th class="l">Propuesta</th><th class="l">DNI</th><th class="l">Plaza</th><th class="l">Cláu. prop→real</th><th>Inicio</th><th>Fin comp.</th><th>Consumo</th><th>Devol. prev.</th><th>Devol. reg.</th><th>Devol. pend.</th><th class="l">Enlace</th></tr>`;
   for(const p of pr){tpr+=filaProp(p)}
-  tpr+=`</table></div>`;
+  tpr+=`</table></div>`+LEG_ENL;
   out.innerHTML=`<h3>Cascada del saldo</h3>${wf}${k}${tp}${tpr}`;
 }
 function filaProp(p){
   const cd=p.clau_prop!==p.clau_real?`${p.clau_prop}→<b>${p.clau_real}</b>`:p.clau_real;
-  const enl=!p.enlazada?tag("sin contrato","a"):(p.enlace_directo?tag("directo","g"):tag("heurístico","n"));
+  const enl=enlTag(p);
   const dp=p.devol_pendiente>0?`<span class="neg">${eur(p.devol_pendiente)}</span>`:eur(p.devol_pendiente);
   return `<tr><td class="l">${p.propuesta_id}</td><td class="l">${p.idrh||""}</td><td class="l">${p.id_plaza}</td><td class="l">${cd}</td><td>${p.inicio}</td><td>${p.efectivo_fin}</td><td>${eur(p.consumo_neto)}</td><td>${eur(p.devol_prevista)}</td><td>${eur(p.devol_registrada)}</td><td>${dp}</td><td class="l">${enl}</td></tr>`;
 }
@@ -191,10 +208,10 @@ function renderDni(){
   if(!ps.length&&!cs.length){out.innerHTML=`<p class="empty">Sin actividad relevante para ${q} (posterior al corte).</p>`;return;}
   let h=`<h3>Propuestas / contratos de ${q} — ${ps.length}</h3><div class="scroll"><table><tr><th class="l">Propuesta</th><th class="l">Plaza</th><th class="l">Dir.</th><th class="l">Cláu. prop→real</th><th>Inicio</th><th>Fin reserv.</th><th>Fin comp.</th><th>Consumo</th><th>Devol. prev.</th><th>Devol. reg.</th><th>Devol. pend.</th><th class="l">Enlace</th></tr>`;
   for(const p of ps){const cd=p.clau_prop!==p.clau_real?`${p.clau_prop}→<b>${p.clau_real}</b>`:p.clau_real;
-    const enl=!p.enlazada?tag("sin contrato","a"):(p.enlace_directo?tag("directo","g"):tag("heurístico","n"));
+    const enl=enlTag(p);
     const dp=p.devol_pendiente>0?`<span class="neg">${eur(p.devol_pendiente)}</span>`:eur(p.devol_pendiente);
     h+=`<tr><td class="l">${p.propuesta_id}</td><td class="l">${p.id_plaza}</td><td class="l">${p.dir_real||p.dir_prop}</td><td class="l">${cd}</td><td>${p.inicio}</td><td>${p.reserva_fin}</td><td>${p.efectivo_fin}</td><td>${eur(p.consumo_neto)}</td><td>${eur(p.devol_prevista)}</td><td>${eur(p.devol_registrada)}</td><td>${dp}</td><td class="l">${enl}</td></tr>`}
-  h+=`</table></div>`;
+  h+=`</table></div>`+LEG_ENL;
   if(cs.length){h+=`<h3>Devoluciones por cierre de contrato (contrato terminó antes de 31/12)</h3><div class="scroll"><table><tr><th class="l">Propuesta</th><th class="l">Plaza</th><th class="l">Cláu.</th><th>Nº periodo</th><th>Cierre</th><th>Reservado hasta</th><th>Días a devolver (calc.)</th><th>Ya registrado</th><th>Pendiente</th></tr>`;
     for(const c of cs){const pend=c.devolucion_pendiente>0;
       h+=`<tr><td class="l">${c.propuesta_id}</td><td class="l">${c.id_plaza}</td><td class="l">${c.clausula}</td><td>${c.contrato_periodo}</td><td>${c.contrato_fin}</td><td>${c.reservado_hasta}</td><td><b>${eur(c.dias_devueltos)}</b></td><td>${eur(c.devolucion_registrada)}</td><td>${pend?tag(eur(c.devolucion_pendiente)+" pend.","a"):tag("hecho","g")}</td></tr>`}
