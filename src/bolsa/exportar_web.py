@@ -24,7 +24,8 @@ def _datos(res: ResultadoConciliacion) -> dict:
 
     def prop(d):
         return dict(
-            propuesta_id=d.propuesta_id, idrh=d.idrh, id_plaza=d.id_plaza,
+            propuesta_id=d.propuesta_id, idrh=d.idrh_efectivo, id_plaza=d.id_plaza,
+            idrh_de_contrato=bool(d.idrh_efectivo and not d.idrh),
             dir_prop=d.direccion_declarada, dir_real=d.direccion_efectiva,
             clau_prop=d.clausula_declarada, clau_real=d.clausula_efectiva,
             inicio=str(d.fecha_inicio or ""), reserva_fin=str(d.reserva_fin or ""),
@@ -98,6 +99,7 @@ th{color:var(--mut);font-weight:600;background:#fafbfc;position:sticky;top:0}
 .muted{color:var(--mut)}.hint{color:var(--mut);font-size:12px;margin:2px 0 10px}
 .leg{color:var(--mut);font-size:12px;margin:8px 0 0;line-height:1.9}
 .tag[title]{cursor:help}
+.ast{color:var(--amber);font-weight:700;cursor:help;margin-left:1px}
 .legend{font-size:12px;color:var(--mut)}.legend b{color:var(--ink)}
 .empty{color:var(--mut);padding:18px;text-align:center}
 </style></head><body>
@@ -121,10 +123,13 @@ const ENL_T={directo:"Enlazada al contrato por su comentario en PeopleNet (\"Sol
   sincontrato:"No se encontró contrato: la propuesta reserva días pero aún no está mecanizada en PeopleNet."};
 function enlTag(p){return !p.enlazada?tag("sin contrato","a",ENL_T.sincontrato)
   :(p.enlace_directo?tag("directo","g",ENL_T.directo):tag("heurístico","n",ENL_T.heuristico));}
+const DNI_C_T="DNI tomado del contrato: la propuesta se exportó sin IDRH (aún no asignado). El enlace al contrato aporta el DNI.";
+const dniCell=p=>p.idrh?(p.idrh_de_contrato?`${p.idrh}<span class="ast" title="${DNI_C_T}">*</span>`:p.idrh):"";
 const LEG_ENL=`<p class="leg"><b>Enlace:</b> `
   +tag("directo","g",ENL_T.directo)+` propuesta↔contrato por el comentario del contrato · `
   +tag("heurístico","n",ENL_T.heuristico)+` deducido por DNI/NIE + fechas + plaza (sin referencia explícita) · `
-  +tag("sin contrato","a",ENL_T.sincontrato)+` reserva sin contrato mecanizado.</p>`;
+  +tag("sin contrato","a",ENL_T.sincontrato)+` reserva sin contrato mecanizado. `
+  +`<span class="ast">*</span> DNI tomado del contrato (la propuesta se exportó sin IDRH).</p>`;
 function siNo(b){return b?tag("sí","g"):tag("no","n")}
 
 // ---- vista semáforo ----
@@ -188,7 +193,7 @@ function filaProp(p){
   const cd=p.clau_prop!==p.clau_real?`${p.clau_prop}→<b>${p.clau_real}</b>`:p.clau_real;
   const enl=enlTag(p);
   const dp=p.devol_pendiente>0?`<span class="neg">${eur(p.devol_pendiente)}</span>`:eur(p.devol_pendiente);
-  return `<tr><td class="l">${p.propuesta_id}</td><td class="l">${p.idrh||""}</td><td class="l">${p.id_plaza}</td><td class="l">${cd}</td><td>${p.inicio}</td><td>${p.efectivo_fin}</td><td>${eur(p.consumo_neto)}</td><td>${eur(p.devol_prevista)}</td><td>${eur(p.devol_registrada)}</td><td>${dp}</td><td class="l">${enl}</td></tr>`;
+  return `<tr><td class="l">${p.propuesta_id}</td><td class="l">${dniCell(p)}</td><td class="l">${p.id_plaza}</td><td class="l">${cd}</td><td>${p.inicio}</td><td>${p.efectivo_fin}</td><td>${eur(p.consumo_neto)}</td><td>${eur(p.devol_prevista)}</td><td>${eur(p.devol_registrada)}</td><td>${dp}</td><td class="l">${enl}</td></tr>`;
 }
 
 // ---- vista DNI ----
@@ -241,7 +246,7 @@ function renderProp(){
     <div class="kpi"><div class="k">Devol. pendiente</div><div class="v ${p.devol_pendiente>0?'neg':''}">${eur(p.devol_pendiente)}</div></div></div>
    <p style="margin-top:12px">Estado de la devolución: ${estadoDev}</p>
    <table style="margin-top:8px">
-    <tr><th class="l">DNI</th><td class="l">${p.idrh||""}</td><th class="l">Plaza</th><td class="l">${p.id_plaza}</td></tr>
+    <tr><th class="l">DNI</th><td class="l">${dniCell(p)}</td><th class="l">Plaza</th><td class="l">${p.id_plaza}</td></tr>
     <tr><th class="l">Dirección prop → real</th><td class="l">${p.dir_prop} ${p.dir_real&&p.dir_real!==p.dir_prop?"→ "+p.dir_real:""}</td><th class="l">Enlace</th><td class="l">${p.enlazada?(p.enlace_directo?"directo (comentario)":"heurístico"):"sin contrato"}</td></tr>
     <tr><th class="l">Inicio</th><td class="l">${p.inicio}</td><th class="l">Fin reservado / computable</th><td class="l">${p.reserva_fin} / ${p.efectivo_fin}</td></tr>
     <tr><th class="l">¿Computa?</th><td class="l">${p.computa?"sí":"no — "+p.motivo}</td><th class="l">Σ movimientos reales</th><td class="l">${eur(p.mov_importe)}</td></tr></table>`;

@@ -5,6 +5,7 @@ from bolsa.cargas.periodicas import propuesta_de_comentario
 from bolsa.enlace import enlaza_todas
 from bolsa.equivalencias import Equivalencias
 from bolsa.modelo import Contrato, TramoGFH
+from bolsa.motor import computa_propuesta
 from conftest import propuesta
 
 LIM = date(2026, 12, 31)
@@ -43,6 +44,20 @@ def test_enlace_directo_manda_sobre_heuristico():
     assert enl[0].enlazada
     assert enl[0].enlace_directo
     assert enl[0].clausula_efectiva == "N91c"
+
+
+def test_dni_efectivo_del_contrato_si_propuesta_sin_idrh():
+    # caso real 94064: propuesta APROBADA exportada sin IDRH, enlazada por
+    # comentario a un contrato que sí trae el DNI -> el detalle muestra ese DNI
+    p = propuesta(pid="94064", id_plaza="E071A2", direccion="DEAE",
+                  clausula="N91c", idrh="",
+                  inicio="2026-08-01", fin="2027-04-30")
+    c = _contrato("42412113K", "E071A2", "N91c", "2026-08-01", "2027-04-30",
+                  "DEAE", prop_ref="94064")
+    enl = enlaza_todas([p], [c], Equivalencias(), LIM)[0]
+    det = computa_propuesta(p, enl, date(2026, 7, 2), LIM)
+    assert det.idrh == ""                      # la propuesta no lo trae
+    assert det.idrh_efectivo == "42412113K"    # se toma del contrato
 
 
 def test_sin_referencia_usa_heuristico():

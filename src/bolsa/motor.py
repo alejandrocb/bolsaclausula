@@ -39,6 +39,7 @@ from . import enlace as _enlace
 class DetallePropuesta:
     propuesta_id: str
     idrh: str
+    idrh_efectivo: str        # idrh de la propuesta o, si falta, el del contrato
     id_plaza: str
     direccion_codigo: str
     clausula_declarada: str
@@ -167,9 +168,14 @@ def computa_propuesta(
     consumo_neto = dias_inclusivos(prop.fecha_inicio, efectivo_fin)
     devolucion_prevista = max(0, consumo_bruto - consumo_neto)
 
+    # DNI efectivo: si la propuesta aún no tiene IDRH (p.ej. exportada como
+    # APROBADA antes de asignarse), se toma el del contrato enlazado.
+    idrh_efectivo = prop.idrh or (contrato.idrh if contrato else "")
+
     det = DetallePropuesta(
         propuesta_id=prop.propuesta_id,
         idrh=prop.idrh,
+        idrh_efectivo=idrh_efectivo,
         id_plaza=prop.id_plaza,
         direccion_codigo=prop.direccion_codigo,
         clausula_declarada=prop.clausula,
