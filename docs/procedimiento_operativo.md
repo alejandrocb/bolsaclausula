@@ -70,6 +70,11 @@ acumulan.
    - **Por DNI/NIE**: propuestas, contratos y devoluciones del DNI, con
      devolución *prevista* (calculada), *registrada* y *pendiente*.
    - **Por Propuesta**: estado de la devolución — «¿ya hicieron el movimiento?».
+   > Las búsquedas «Por DNI» y «Por Propuesta» incluyen también las
+   > `APROBADA/MECANIZADA` **vigentes** (fin ≥ corte) aunque **no computen**
+   > (p.ej. autorizadas antes del 02/07, ya en la base): salen atenuadas con la
+   > etiqueta *no computa* y su motivo, para poder localizarlas sin que alteren
+   > los totales. El histórico ya terminado (anterior al corte) no se incluye.
    > Contiene DNI/NIE: es un fichero **local**, no se publica ni se versiona
    > (está en `salidas/`, ignorada por git).
 

@@ -14,14 +14,31 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from .config import CONFIG
+from .fechas import parse_fecha
 from .motor import ResultadoConciliacion
 
 
 def _datos(res: ResultadoConciliacion) -> dict:
     dps = res.detalle_propuestas
+    # relevantes = las que computan/mueven/devuelven o son incoherentes, MÁS
+    # las APROBADA/MECANIZADA VIGENTES aunque no computen (para poder buscarlas;
+    # p.ej. autorizadas antes del corte, ya en la base). "Vigentes" = su fin
+    # reservado alcanza el corte o es posterior; así se excluye el histórico ya
+    # terminado (miles de propuestas de años anteriores). Se etiquetan con su
+    # motivo de no-cómputo y NO entran en los totales (que salen de res.detalle).
+    corte = parse_fecha(CONFIG.fecha_corte)
+
+    def _extra(d):
+        if not (d.estado == "APROBADA" or d.sub_estado == "MECANIZADA"):
+            return False
+        return (d.reserva_fin is None or d.reserva_fin >= corte
+                or (d.fecha_inicio is not None and d.fecha_inicio >= corte))
+
     relevantes = [d for d in dps if d.computa or d.movimiento_importe
                   or d.devolucion_registrada
-                  or (d.enlace_directo and not d.coherencia_ok)]
+                  or (d.enlace_directo and not d.coherencia_ok)
+                  or _extra(d)]
 
     def prop(d):
         return dict(
@@ -38,7 +55,7 @@ def _datos(res: ResultadoConciliacion) -> dict:
             mov_importe=d.movimiento_importe,
             enlazada=d.enlazada, enlace_directo=d.enlace_directo,
             contrato_cerrado=d.contrato_cerrado, computa=d.computa,
-            sub_estado=d.sub_estado, motivo=d.motivo_no_computa,
+            estado=d.estado, sub_estado=d.sub_estado, motivo=d.motivo_no_computa,
             coh_ok=d.coherencia_ok, coh_dni=d.coh_dni, coh_fecha=d.coh_fecha,
             coh_plaza=d.coh_plaza, c_idrh=d.contrato_idrh,
             c_inicio=str(d.contrato_inicio or ""), c_plaza=d.contrato_plaza,
@@ -105,6 +122,7 @@ th{color:var(--mut);font-weight:600;background:#fafbfc;position:sticky;top:0}
 .tag[title]{cursor:help}
 .ast{color:var(--amber);font-weight:700;cursor:help;margin-left:1px}
 .warn{color:var(--amber);font-weight:700;cursor:help;margin-left:4px}
+tr.nc td{color:var(--mut);background:#fafafa}
 .legend{font-size:12px;color:var(--mut)}.legend b{color:var(--ink)}
 .empty{color:var(--mut);padding:18px;text-align:center}
 </style></head><body>
@@ -221,21 +239,26 @@ function vDni(){
   return `<div class="card"><h2>Por DNI / NIE</h2>
    <div class="hint">Responde: «¿me devolvieron los días de este DNI?» · «esta propuesta hasta el 31/12 que cerró antes, ¿me sumaron días?»</div>
    <input id="dni" placeholder="Escribe un DNI/NIE y pulsa Enter" autocomplete="off">
-   <p class="legend">Devol. <b>prevista</b> = calculada (teórica) · <b>registrada</b> = ya hecha en movimientos · <b>pendiente</b> = falta hacerla en PeopleNet.</p>
+   <p class="legend">Devol. <b>prevista</b> = calculada (teórica) · <b>registrada</b> = ya hecha en movimientos · <b>pendiente</b> = falta hacerla en PeopleNet. Las filas atenuadas con <span class="tag n">no computa</span> son APROBADA/MECANIZADA que no entran en el cálculo (p.ej. autorizadas antes del corte, ya en la base); pasa el ratón por la etiqueta para ver el motivo.</p>
    <div id="dniOut"><p class="empty">Introduce un DNI/NIE.</p></div></div>`;
 }
 function renderDni(){
   const q=(document.getElementById("dni").value||"").trim().toUpperCase();
   const out=document.getElementById("dniOut");
   if(!q){out.innerHTML=`<p class="empty">Introduce un DNI/NIE.</p>`;return;}
-  const ps=DATA.propuestas.filter(p=>(p.idrh||"").toUpperCase()===q);
+  const ps=DATA.propuestas.filter(p=>(p.idrh||"").toUpperCase()===q)
+    .sort((a,b)=>(b.computa-a.computa)||((a.inicio||"")<(b.inicio||"")?-1:1));
   const cs=DATA.cierres.filter(c=>(c.idrh||"").toUpperCase()===q);
-  if(!ps.length&&!cs.length){out.innerHTML=`<p class="empty">Sin actividad relevante para ${q} (posterior al corte).</p>`;return;}
-  let h=`<h3>Propuestas / contratos de ${q} — ${ps.length}</h3><div class="scroll"><table><tr><th class="l">Propuesta</th><th class="l">Plaza</th><th class="l">Dir.</th><th class="l">Cláu. prop→real</th><th>Inicio</th><th>Fin reserv.</th><th>Fin comp.</th><th>Consumo</th><th>Devol. prev.</th><th>Devol. reg.</th><th>Devol. pend.</th><th class="l">Enlace</th></tr>`;
+  if(!ps.length&&!cs.length){out.innerHTML=`<p class="empty">Sin propuestas ni cierres para ${q}.</p>`;return;}
+  const nComp=ps.filter(p=>p.computa).length;
+  let h=`<h3>Propuestas / contratos de ${q} — ${ps.length}`
+    +(ps.length-nComp>0?` (${nComp} computan · ${ps.length-nComp} no computan)`:"")
+    +`</h3><div class="scroll"><table><tr><th class="l">Propuesta</th><th class="l">Plaza</th><th class="l">Dir.</th><th class="l">Cláu. prop→real</th><th>Inicio</th><th>Fin reserv.</th><th>Fin comp.</th><th>Consumo</th><th>Devol. prev.</th><th>Devol. reg.</th><th>Devol. pend.</th><th class="l">Enlace</th></tr>`;
   for(const p of ps){const cd=p.clau_prop!==p.clau_real?`${p.clau_prop}→<b>${p.clau_real}</b>`:p.clau_real;
     const enl=enlTag(p);
     const dp=p.devol_pendiente>0?`<span class="neg">${eur(p.devol_pendiente)}</span>`:eur(p.devol_pendiente);
-    h+=`<tr><td class="l">${p.propuesta_id}</td><td class="l">${p.id_plaza}</td><td class="l">${p.dir_real||p.dir_prop}</td><td class="l">${cd}</td><td>${fd(p.inicio)}</td><td>${fd(p.reserva_fin)}</td><td>${fd(p.efectivo_fin)}</td><td>${eur(p.consumo_neto)}</td><td>${eur(p.devol_prevista)}</td><td>${eur(p.devol_registrada)}</td><td>${dp}</td><td class="l">${enl}</td></tr>`}
+    const pcell=p.computa?p.propuesta_id:`${p.propuesta_id} ${tag("no computa","n",p.motivo)}`;
+    h+=`<tr class="${p.computa?'':'nc'}"><td class="l">${pcell}</td><td class="l">${p.id_plaza}</td><td class="l">${p.dir_real||p.dir_prop}</td><td class="l">${cd}</td><td>${fd(p.inicio)}</td><td>${fd(p.reserva_fin)}</td><td>${fd(p.efectivo_fin)}</td><td>${eur(p.consumo_neto)}</td><td>${eur(p.devol_prevista)}</td><td>${eur(p.devol_registrada)}</td><td>${dp}</td><td class="l">${enl}</td></tr>`}
   h+=`</table></div>`+LEG_ENL;
   if(cs.length){h+=`<h3>Devoluciones por cierre de contrato (contrato terminó antes de 31/12)</h3><div class="scroll"><table><tr><th class="l">Propuesta</th><th class="l">Plaza</th><th class="l">Cláu.</th><th>Nº periodo</th><th>Cierre</th><th>Reservado hasta</th><th>Días a devolver (calc.)</th><th>Ya registrado</th><th>Pendiente</th></tr>`;
     for(const c of cs){const pend=c.devolucion_pendiente>0;

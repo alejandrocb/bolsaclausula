@@ -56,6 +56,7 @@ class DetallePropuesta:
     laboral: bool
     mecanizada: bool
     computa: bool
+    estado: str = ""
     sub_estado: str = ""
     motivo_no_computa: str = ""
     devolucion_registrada: int = 0
@@ -232,6 +233,7 @@ def computa_propuesta(
         laboral=laboral,
         mecanizada=mecanizada,
         computa=False,
+        estado=prop.estado,
         sub_estado=prop.sub_estado,
         direccion_declarada=prop.direccion_codigo,
         plaza_distinta=enlace.plaza_distinta,
