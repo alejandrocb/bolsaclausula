@@ -75,6 +75,7 @@ def _datos(res: ResultadoConciliacion) -> dict:
 
     return dict(
         semaforo=res.semaforo,
+        usados_contratos=res.usados_vs_contratos,
         totales=res.totales_clausula,
         direcciones=res.resumen_direccion,
         detalle=[fila(f) for f in res.detalle],
@@ -181,6 +182,14 @@ function vSemaforo(){
   h+=`<div class="card"><h2>Totales por cláusula</h2><table><tr><th class="l">Cláusula</th><th>Postcontrol</th><th>Consumo</th><th>Devolución</th><th>Devol. cierre</th><th>Ajuste</th><th>Reserva</th><th>Saldo calculado</th><th>Saldo Propuestas</th></tr>`;
   for(const t of DATA.totales){h+=`<tr><td class="l"><b>${t.clausula}</b></td><td>${eur(t.saldo_postcontrol)}</td><td>${eur(t.consumo_posterior)}</td><td>${eur(t.devolucion_posterior)}</td><td>${eur(t.devolucion_cierre)}</td><td>${eur(t.ajuste_peoplenet)}</td><td>${eur(t.reserva_pendiente)}</td><td><b>${eur(t.saldo_calculado)}</b></td><td>${eur(t.saldo_actual_propuestas)}</td></tr>`}
   h+=`</table></div>`;
+  if((DATA.usados_contratos||[]).length){
+    h+=`<div class="card"><h2>Control: «Días Usados» PeopleNet vs contratos</h2>
+     <p class="hint">Sumamos cada contrato hasta su fin real y lo comparamos con el «Días Usados» oficial. Deben coincidir; si no, faltan contratos en el export o el usados descuadra.</p>
+     <table><tr><th class="l">Cláusula</th><th>Comprometido a fin real</th><th>Días Usados (PeopleNet)</th><th>Diferencia</th><th>Coincidencia</th><th>Estado</th></tr>`;
+    for(const u of DATA.usados_contratos){const ok=u.estado==="OK";
+      h+=`<tr><td class="l"><b>${u.clausula}</b></td><td>${eur(u.comprometido_contratos)}</td><td>${eur(u.dias_usados_peoplenet)}</td><td class="${u.diferencia===0?'':'neg'}">${eur(u.diferencia)}</td><td>${u.coincidencia_pct}%</td><td>${tag(ok?"OK":"REVISAR",ok?"g":"a")}</td></tr>`}
+    h+=`</table></div>`;
+  }
   return h;
 }
 

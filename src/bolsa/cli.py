@@ -144,6 +144,12 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
               f"disponible_tras_compromisos={s['disponible_tras_compromisos']}  "
               f"reserva_pend_sin_contrato={s['reserva_pendiente_sin_contrato']}",
               file=sys.stderr)
+    if res.usados_vs_contratos:
+        print("\n=== CONTROL: Días Usados PeopleNet vs contratos ===", file=sys.stderr)
+        for x in res.usados_vs_contratos:
+            print(f"  {x['clausula']}: comprometido={x['comprometido_contratos']} "
+                  f"usados_PN={x['dias_usados_peoplenet']} dif={x['diferencia']} "
+                  f"({x['coincidencia_pct']}%) [{x['estado']}]", file=sys.stderr)
     if res.validacion is not None:
         v = res.validacion.resumen
         print("\n=== VALIDACIÓN MOVIMIENTOS (esperado vs registrado) ===", file=sys.stderr)

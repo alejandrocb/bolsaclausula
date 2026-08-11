@@ -344,6 +344,17 @@ def exporta_conciliacion(
         ("incidencias", "Incidencias"),
     ], incoh)
 
+    # A13 Control: 'Días Usados' de PeopleNet vs días comprometidos por contrato
+    if res.usados_vs_contratos:
+        _hoja(wb, "A13_Usados_vs_Contratos", [
+            ("clausula", "Cláusula"),
+            ("comprometido_contratos", "Comprometido a fin real (contratos)"),
+            ("dias_usados_peoplenet", "Días Usados (PeopleNet)"),
+            ("diferencia", "Diferencia"),
+            ("coincidencia_pct", "Coincidencia %"),
+            ("estado", "Estado"),
+        ], res.usados_vs_contratos)
+
     Path(ruta).parent.mkdir(parents=True, exist_ok=True)
     wb.save(ruta)
     return Path(ruta)

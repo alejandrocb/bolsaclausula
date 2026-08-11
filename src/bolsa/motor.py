@@ -113,6 +113,7 @@ class ResultadoConciliacion:
     devoluciones_cierre: list[dict] = field(default_factory=list)
     contratos_post_corte: list[dict] = field(default_factory=list)
     validacion: object = None       # ResultadoValidacion (validación cruzada)
+    usados_vs_contratos: list[dict] = field(default_factory=list)
 
 
 def _reserva_fin(prop: Propuesta, fecha_limite: date) -> date:
@@ -589,4 +590,31 @@ def conciliar(
     res.validacion = valida_movimientos(
         propuestas, movimientos, res.detalle_propuestas, fecha_limite, config
     )
+
+    # 9) control PeopleNet: 'Días Usados' vs días comprometidos por contrato.
+    # Sumamos cada contrato hasta su fin REAL (tope fecha_limite, dentro del año)
+    # y lo comparamos con el 'dias_usados' oficial de la Bolsa. Deben coincidir:
+    # si no, o faltan contratos en el export o el 'usados' de PeopleNet descuadra.
+    anio_inicio = date(fecha_limite.year, 1, 1)
+    comprometido: dict[str, int] = defaultdict(int)
+    for c in contratos:
+        if not c.fecha_inicio:
+            continue
+        ini = max(c.fecha_inicio, anio_inicio)
+        fin = min(c.fecha_fin or fecha_limite, fecha_limite)
+        comprometido[c.clausula] += max(0, dias_inclusivos(ini, fin))
+    for b in bolsa_peoplenet:
+        comp = comprometido.get(b.clausula, 0)
+        usados = b.dias_usados
+        dif = comp - usados
+        base = max(abs(comp), abs(usados), 1)
+        pct = round(100 * (1 - abs(dif) / base), 1)
+        res.usados_vs_contratos.append(dict(
+            clausula=b.clausula,
+            comprometido_contratos=comp,
+            dias_usados_peoplenet=usados,
+            diferencia=dif,
+            coincidencia_pct=pct,
+            estado="OK" if abs(dif) <= max(50, 0.02 * base) else "REVISAR",
+        ))
     return res
