@@ -692,7 +692,19 @@ def _ancla_a_peoplenet(res, contratos, bolsa_peoplenet, fecha_corte,
         nombre_dir[f.direccion_codigo] = f.direccion_nombre
 
     contratacion = {b.clausula: b.dias_contratacion for b in bolsa_peoplenet}
+    usados_oficial = {b.clausula: b.dias_usados for b in bolsa_peoplenet}
     claves = set(usados_now) | set(post) | set(pend)
+
+    # Ajuste al 'Días Usados' OFICIAL de PeopleNet: nuestro recuento contrato a
+    # contrato puede diferir un ~0,3% (residuo A13); escalamos el usados por
+    # plaza para que su suma por cláusula sea EXACTAMENTE el usados oficial.
+    # Así el disponible anclado cuadra exacto con el Margen (que usa el usados
+    # oficial) y no queda ese residuo 'en contra'.
+    usados_clau: dict[str, int] = defaultdict(int)
+    for k, v in usados_now.items():
+        usados_clau[k.clausula] += v
+    factor_u = {cl: (usados_oficial.get(cl, tot) / tot if tot else 1.0)
+                for cl, tot in usados_clau.items()}
 
     # peso de reparto por clave = max(0, postcontrol) + usados a fecha de corte
     peso = {k: max(0, post[k]) + usados_cut.get(k, 0) for k in claves}
@@ -708,7 +720,7 @@ def _ancla_a_peoplenet(res, contratos, bolsa_peoplenet, fecha_corte,
         w = peso.get(k, 0)
         wc = peso_clau.get(k.clausula, 0)
         contro_k = (contro * w / wc) if wc else 0
-        u = usados_now.get(k, 0)
+        u = round(usados_now.get(k, 0) * factor_u.get(k.clausula, 1.0))
         p = pend.get(k, 0)
         disp = round(contro_k - u - p)
         res.anclado_plaza.append(dict(
