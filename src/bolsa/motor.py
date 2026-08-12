@@ -649,7 +649,13 @@ def _ancla_a_peoplenet(res, contratos, bolsa_peoplenet, fecha_corte,
             return {}
         reparto, sin_tramo = reparte_dias(ini, fin, c.tramos)
         if sin_tramo > 0:
-            fb = c.divisiones[0] if c.divisiones else ""
+            # días sin tramo GFH (p.ej. la cola de un contrato abierto que
+            # contamos hasta 31/12 pero cuyos tramos no llegan tan lejos):
+            # se atribuyen al GFH vigente = el tramo que empieza más tarde.
+            fb = ""
+            if c.tramos:
+                ult = max(c.tramos, key=lambda t: (t.fecha_inicio or date.min))
+                fb = ult.division or ""
             reparto[fb] = reparto.get(fb, 0) + sin_tramo
         return reparto
 
