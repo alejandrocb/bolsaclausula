@@ -116,6 +116,7 @@ class ResultadoConciliacion:
     usados_vs_contratos: list[dict] = field(default_factory=list)
     anclado_plaza: list[dict] = field(default_factory=list)       # modo anclado a PeopleNet, por plaza
     anclado_direccion: list[dict] = field(default_factory=list)   # agregado por dirección (control)
+    anclado_sin_gfh: list[dict] = field(default_factory=list)     # contratos con GFH no mapeado (DNI, plaza, GFH)
 
 
 def _reserva_fin(prop: Propuesta, fecha_limite: date) -> date:
@@ -664,7 +665,18 @@ def _ancla_a_peoplenet(res, contratos, bolsa_peoplenet, fecha_corte,
     for c in contratos:
         if c.clausula not in prioritarias:
             continue
-        for div, dias in _reparte_2026(c).items():
+        reparto_now = _reparte_2026(c)
+        # traza de contratos SIN GFH mapeado (días que caen en división "")
+        dias_sin = reparto_now.get("", 0)
+        if dias_sin > 0:
+            gfhs = sorted({(t.gfh_id, t.gfh_nombre) for t in c.tramos if t.gfh_id})
+            res.anclado_sin_gfh.append(dict(
+                idrh=c.idrh, id_plaza=c.id_plaza, clausula=c.clausula,
+                num_periodo=c.num_periodo,
+                inicio=str(c.fecha_inicio or ""), fin=str(c.fecha_fin or ""),
+                dias=dias_sin,
+                gfh=", ".join(f"{g[0]} {g[1]}".strip() for g in gfhs) or "(sin GFH)"))
+        for div, dias in reparto_now.items():
             usados_now[ClavePlaza(c.id_plaza, div, c.clausula)] += dias
         for div, dias in _reparte_2026(c, fecha_corte).items():
             usados_cut[ClavePlaza(c.id_plaza, div, c.clausula)] += dias

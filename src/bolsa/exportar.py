@@ -375,6 +375,12 @@ def exporta_conciliacion(
             ("pendiente", "Pendiente (reservas)"),
             ("disponible", "Disponible"),
         ], res.anclado_plaza)
+    if res.anclado_sin_gfh:
+        _hoja(wb, "B3_Sin_GFH", [
+            ("idrh", "DNI"), ("id_plaza", "ID Plaza"), ("clausula", "Cláusula"),
+            ("num_periodo", "Nº periodo"), ("inicio", "Inicio"), ("fin", "Fin"),
+            ("dias", "Días sin división"), ("gfh", "GFH (falta en el maestro)"),
+        ], res.anclado_sin_gfh)
 
     Path(ruta).parent.mkdir(parents=True, exist_ok=True)
     wb.save(ruta)

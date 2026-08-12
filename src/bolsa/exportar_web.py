@@ -83,6 +83,7 @@ def _datos(res: ResultadoConciliacion) -> dict:
         cierres=res.devoluciones_cierre,
         anclado_dir=res.anclado_direccion,
         anclado_plaza=res.anclado_plaza,
+        anclado_sin_gfh=res.anclado_sin_gfh,
     )
 
 
@@ -297,6 +298,14 @@ function vAnclado(){
         h+=`<tr class="nc"><td class="l">&nbsp;&nbsp;↳ ${p.id_plaza}</td><td class="l"></td><td>${eur(p.contratacion_plaza)}</td><td>${eur(p.usados_real)}</td><td>${eur(p.pendiente)}</td><td class="${p.disponible<0?'neg':''}">${eur(p.disponible)}</td><td></td></tr>`;
       }
     }
+    h+=`</table></div>`;
+  }
+  const sg=DATA.anclado_sin_gfh||[];
+  if(sg.length){
+    h+=`<h3 style="margin-top:14px">Contratos sin GFH mapeado ${tag(sg.length,"a")}</h3>
+     <p class="hint">Su GFH no está en el maestro de Divisiones, por eso caen en «(sin GFH)». Añade el par (plaza, GFH) al maestro y desaparecen.</p>
+     <div class="scroll"><table><tr><th class="l">DNI</th><th class="l">Plaza</th><th class="l">Cláu.</th><th>Nº periodo</th><th>Inicio</th><th>Fin</th><th>Días</th><th class="l">GFH (falta en el maestro)</th></tr>`;
+    for(const s of sg){h+=`<tr><td class="l">${s.idrh||""}</td><td class="l">${s.id_plaza}</td><td class="l">${s.clausula}</td><td>${s.num_periodo}</td><td>${fd(s.inicio)}</td><td>${fd(s.fin)}</td><td>${eur(s.dias)}</td><td class="l">${s.gfh||""}</td></tr>`}
     h+=`</table></div>`;
   }
   h+=`</div>`;

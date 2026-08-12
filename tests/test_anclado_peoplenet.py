@@ -34,6 +34,22 @@ def test_contrato_con_hueco_de_gfh_no_rompe():
     assert deap["usados_real"] == 31
 
 
+def test_contrato_sin_gfh_se_traza_con_dni():
+    # contrato cuyo tramo no tiene división (GFH no mapeado) -> se traza en B3
+    clave, si = saldo_inicial(id_plaza="E963A2", direccion="DEAP",
+                              clausula="S9b1a", base=100)
+    c = contrato(idrh="99999999R", periodo="1", id_plaza="E963A2",
+                 clausula="S9b1a", inicio="2026-08-01", fin="2026-08-13",
+                 tramos=[("2026-08-01", "2026-08-13", "")])  # división vacía
+    res = conciliar({clave: si}, [], [c], [], {},
+                    [bolsa(clausula="S9b1a", contratacion=1000, usados=13)])
+    assert res.anclado_sin_gfh, "el contrato sin GFH debe quedar trazado"
+    x = res.anclado_sin_gfh[0]
+    assert x["idrh"] == "99999999R"
+    assert x["id_plaza"] == "E963A2"
+    assert x["dias"] == 13
+
+
 def test_control_por_direccion_marca_rojo():
     # dirección cuyo usado supera su contratación -> ROJO
     clave, si = saldo_inicial(id_plaza="E071A2", direccion="DEAP",
