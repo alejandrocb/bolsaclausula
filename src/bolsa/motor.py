@@ -649,7 +649,8 @@ def _ancla_a_peoplenet(res, contratos, bolsa_peoplenet, fecha_corte,
             return {}
         reparto, sin_tramo = reparte_dias(ini, fin, c.tramos)
         if sin_tramo > 0:
-            reparto[c.division or ""] = reparto.get(c.division or "", 0) + sin_tramo
+            fb = c.divisiones[0] if c.divisiones else ""
+            reparto[fb] = reparto.get(fb, 0) + sin_tramo
         return reparto
 
     usados_now: dict[ClavePlaza, int] = defaultdict(int)
@@ -658,9 +659,9 @@ def _ancla_a_peoplenet(res, contratos, bolsa_peoplenet, fecha_corte,
         if c.clausula not in prioritarias:
             continue
         for div, dias in _reparte_2026(c).items():
-            usados_now[ClavePlaza(c.id_plaza, div or c.division, c.clausula)] += dias
+            usados_now[ClavePlaza(c.id_plaza, div, c.clausula)] += dias
         for div, dias in _reparte_2026(c, fecha_corte).items():
-            usados_cut[ClavePlaza(c.id_plaza, div or c.division, c.clausula)] += dias
+            usados_cut[ClavePlaza(c.id_plaza, div, c.clausula)] += dias
 
     # postcontrol y pendiente por clave, desde el detalle ya calculado
     post: dict[ClavePlaza, int] = defaultdict(int)

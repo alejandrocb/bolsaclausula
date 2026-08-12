@@ -18,6 +18,22 @@ def test_reconcilia_por_clausula_con_el_margen():
     assert abs(total - margen) <= 2      # tolerancia por redondeo del reparto
 
 
+def test_contrato_con_hueco_de_gfh_no_rompe():
+    # contrato 01/08–31/08 pero su tramo GFH solo cubre 01/08–15/08 -> hay
+    # días 'sin tramo' que deben caer en la división del contrato (no romper).
+    clave, si = saldo_inicial(id_plaza="E071A2", direccion="DEAP",
+                              clausula="N91c", base=1000)
+    c = contrato(idrh="1H", periodo="1", id_plaza="E071A2", clausula="N91c",
+                 inicio="2026-08-01", fin="2026-08-31",
+                 tramos=[("2026-08-01", "2026-08-15", "DEAP")])
+    res = conciliar({clave: si}, [], [c], [], {},
+                    [bolsa(clausula="N91c", contratacion=1000, usados=31)])
+    # el usado (31 días) debe quedar todo en DEAP pese al hueco de GFH
+    deap = next(a for a in res.anclado_direccion
+                if a["direccion"] == "DEAP" and a["clausula"] == "N91c")
+    assert deap["usados_real"] == 31
+
+
 def test_control_por_direccion_marca_rojo():
     # dirección cuyo usado supera su contratación -> ROJO
     clave, si = saldo_inicial(id_plaza="E071A2", direccion="DEAP",
