@@ -81,6 +81,8 @@ def _datos(res: ResultadoConciliacion) -> dict:
         detalle=[fila(f) for f in res.detalle],
         propuestas=[prop(d) for d in relevantes],
         cierres=res.devoluciones_cierre,
+        anclado_dir=res.anclado_direccion,
+        anclado_plaza=res.anclado_plaza,
     )
 
 
@@ -196,8 +198,8 @@ function vSemaforo(){
 // ---- vista dirección ----
 function vDireccion(){
   const dirs=[...new Set(DATA.direcciones.map(d=>d.direccion_codigo))];
-  let h=`<div class="card"><h2>Por Dirección y Cláusula</h2>
-   <div class="hint">Responde: «¿por qué tenía tantos días y ahora me quedan tan pocos?»</div>
+  let h=`<div class="card"><h2>Por Dirección y Cláusula <span class="tag n">modo actual (desde el corte)</span></h2>
+   <div class="hint">Responde: «¿por qué tenía tantos días y ahora me quedan tan pocos?» · Para el disponible anclado a PeopleNet, ver la pestaña «Anclado PeopleNet».</div>
    <div style="display:flex;gap:10px;flex-wrap:wrap">
     <select id="dir">${dirs.map(d=>`<option>${d}</option>`).join("")}</select>${clauSel("clau")}</div>
    <div id="dirOut"></div></div>`;
@@ -276,6 +278,31 @@ function renderDni(){
   out.innerHTML=h;
 }
 
+// ---- vista anclado a PeopleNet ----
+function vAnclado(){
+  let h=`<div class="card"><h2>Modo anclado a PeopleNet — control por dirección</h2>
+   <p class="hint">Disponible = Contratación (reparto del corte) − Usados real (contratos a fin real) − Pendiente (reservas sin contrato). El usados real ya lleva los cierres dentro. <b>Control: que cada dirección sume ≥ 0</b> (una plaza suelta puede ir negativa).</p>`;
+  for(const cl of ["N91c","S9b1a"]){
+    const ds=(DATA.anclado_dir||[]).filter(a=>a.clausula===cl);
+    if(!ds.length) continue;
+    const tot=ds.reduce((s,a)=>s+a.disponible,0);
+    const rojas=ds.filter(a=>a.estado==="ROJO").length;
+    h+=`<h3 style="margin-top:14px">${cl} ${cl==="N91c"?"(refuerzos)":"(sustituciones)"} — global ${tag(eur(tot),tot<0?"r":"g")} ${rojas?tag(rojas+" dir. en rojo","a"):tag("todas verdes","g")}</h3>`;
+    h+=`<div class="scroll"><table><tr><th class="l">Dir.</th><th class="l">Dirección</th><th>Contratación (reparto)</th><th>Usados real</th><th>Pendiente</th><th>Disponible</th><th>Estado</th></tr>`;
+    for(const a of ds){const ok=a.estado!=="ROJO";
+      h+=`<tr><td class="l"><b>${a.direccion||"(sin GFH)"}</b></td><td class="l">${a.direccion_nombre||""}</td><td>${eur(a.contratacion)}</td><td>${eur(a.usados_real)}</td><td>${eur(a.pendiente)}</td><td class="${a.disponible<0?'neg':'pos'}"><b>${eur(a.disponible)}</b></td><td>${tag(ok?"VERDE":"ROJO",ok?"g":"r")}</td></tr>`;
+      // plazas de esa dirección (drill-down)
+      const pls=(DATA.anclado_plaza||[]).filter(p=>p.clausula===cl&&p.direccion===a.direccion&&(p.contratacion_plaza||p.usados_real||p.pendiente||p.disponible));
+      for(const p of pls){
+        h+=`<tr class="nc"><td class="l">&nbsp;&nbsp;↳ ${p.id_plaza}</td><td class="l"></td><td>${eur(p.contratacion_plaza)}</td><td>${eur(p.usados_real)}</td><td>${eur(p.pendiente)}</td><td class="${p.disponible<0?'neg':''}">${eur(p.disponible)}</td><td></td></tr>`;
+      }
+    }
+    h+=`</table></div>`;
+  }
+  h+=`</div>`;
+  return h;
+}
+
 // ---- vista propuesta ----
 function vProp(){
   return `<div class="card"><h2>Por Propuesta — ¿ya hicieron el movimiento?</h2>
@@ -316,15 +343,15 @@ function renderProp(){
   out.innerHTML=h;
 }
 
-const VIEWS=[["Semáforo",vSemaforo],["Por Dirección",vDireccion],["Por DNI",vDni],["Por Propuesta",vProp]];
+const VIEWS=[["Semáforo",vSemaforo],["Por Dirección",vDireccion],["Anclado PeopleNet",vAnclado],["Por DNI",vDni],["Por Propuesta",vProp]];
 let cur=0;
 function draw(){
   document.getElementById("nav").innerHTML=VIEWS.map((v,i)=>`<button class="${i===cur?'on':''}" data-i="${i}">${v[0]}</button>`).join("");
   document.getElementById("app").innerHTML=VIEWS[cur][1]();
   document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{cur=+b.dataset.i;draw()});
   if(cur===1){["dir","clau"].forEach(id=>document.getElementById(id).onchange=renderDir);renderDir();}
-  if(cur===2){const i=document.getElementById("dni");i.onkeydown=e=>{if(e.key==="Enter")renderDni()};i.focus();}
-  if(cur===3){const i=document.getElementById("pid");i.onkeydown=e=>{if(e.key==="Enter")renderProp()};i.focus();}
+  if(cur===3){const i=document.getElementById("dni");i.onkeydown=e=>{if(e.key==="Enter")renderDni()};i.focus();}
+  if(cur===4){const i=document.getElementById("pid");i.onkeydown=e=>{if(e.key==="Enter")renderProp()};i.focus();}
 }
 document.getElementById("fecha").textContent=
   (/^\d{8}$/.test(DATA.fecha||"")?`${DATA.fecha.slice(6,8)}/${DATA.fecha.slice(4,6)}/${DATA.fecha.slice(0,4)}`:(DATA.fecha||""));
