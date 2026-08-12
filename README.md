@@ -56,14 +56,35 @@ PYTHONPATH=src python -m bolsa.cli
 
 Genera en `salidas/`:
 - **`conciliacion_<fecha>.xlsx`** — detalle, resumen por dirección, totales,
-  semáforo y 11 pestañas de auditoría.
-- **`recarga_propuestas_<fecha>.xlsx`** — fichero de recarga completa
-  (ID Plaza, categoría, dirección, cláusula, saldo para cargar; incluye 0).
+  semáforo y pestañas de auditoría (`A1`–`A13`, `B1`–`B3`).
+- **`recarga_propuestas_<fecha>.xlsx`** — recarga del **modo actual** (desde el
+  corte): ID Plaza, categoría, dirección, cláusula, saldo para cargar.
+- **`recarga_anclada_PeopleNet_<fecha>.xlsx`** — recarga del **modo anclado a
+  PeopleNet** (`Contratación − Usados_real − Pendiente`).
+- **`informe_<fecha>.html`** — informe web local (contiene DNI, **no se
+  publica**) con las vistas Semáforo, Por Dirección, **Anclado PeopleNet**,
+  Por DNI y Por Propuesta.
+
+### Dos modos de cálculo
+
+La herramienta produce **dos cifras de disponible**, en paralelo:
+
+- **Modo actual (desde el corte):** `saldo = postcontrol − consumo +
+  devoluciones + devolución_por_cierre ± ajuste`. Reproducible desde el 02/07.
+- **Modo anclado a PeopleNet:** `disponible = Contratación − Usados_real −
+  Pendiente`. Ancla el gasto en la realidad de PeopleNet (contratos a fin real,
+  que ya cuentan los cierres) y no depende de los errores del aplicativo.
+  Control por **dirección** (verde si su global ≥ 0).
+
+> **No son comparables entre sí** (bases distintas). El control de
+> sobre-compromiso es el **Margen** (`Contratación − Usados − Reservas`).
+> Ver **[`docs/metodologia_y_conteo.md`](docs/metodologia_y_conteo.md)** para
+> el detalle de cómo cuenta cada sistema y cómo llegamos a estas conclusiones.
 
 ## Pruebas
 
 ```bash
-python -m pytest -q        # 43 pruebas
+python -m pytest -q        # 64 pruebas
 ```
 
 Cubren: conteo inclusivo y topes de fecha; enlace propuesta↔contrato; los

@@ -6,11 +6,15 @@ acumulan.
 
 ## Cada vez que haya nuevos ficheros periódicos
 
-1. **Copiar** los 5 ficheros a `data/periodicas/` conservando el patrón de
-   nombre (`PropuestasContratacion_<fecha>.csv`, `Bolsa_de_dias_<fecha>.xlsx`,
-   `Contratos_PeopleNet_<fecha>.ods`, `MovimientosBolsa_<fecha>.csv`,
-   `SaldoActualPropuestas_<fecha>.csv`). La CLI toma el **más reciente** por
-   patrón. Los del corte inicial (`data/inicial/`) **no se tocan nunca**.
+1. **Copiar** los ficheros a `data/periodicas/` conservando el patrón de
+   nombre. La CLI toma el **más reciente** por patrón. Los del corte inicial
+   (`data/inicial/`) **no se tocan nunca**.
+   - **Imprescindibles:** `PropuestasContratacion_<fecha>.csv`,
+     `Bolsa_de_dias_<fecha>.xlsx` (o `Bolsa_PeopleNet_...`),
+     `Contratos_PeopleNet_<fecha>.xlsx` (o `.ods`).
+   - **Opcionales** (ya no entran en el cálculo anclado; solo informe/auditoría):
+     `MovimientosBolsa_<fecha>.csv`, `SaldoActualPropuestas_<fecha>.csv`.
+     La CLI todavía los pide; si usas `exportar_consultas.ps1` se generan igual.
 
 2. **Comprobar el mapeo** (`config/mapeo_columnas.yaml`) si la exportación pudo
    cambiar de columnas. No hace falta tocar código.
@@ -57,9 +61,19 @@ acumulan.
      `NIE↔DNI` (probable mismo — registrar equivalencia), `L↔E` (misma
      categoría laboral/estatutaria), `DISTINTO`/`FECHA distinta` (revisar
      posible error). En el informe web salen con `⚠` y su desglose.
+   - `A13_Usados_vs_Contratos`: que el `Días Usados` de PeopleNet cuadre con la
+     suma de contratos a fin real (diagnóstico; ~0,3 % de residuo en S9b1a es
+     normal). Si se dispara, faltan contratos o hay descuadre.
+   - `B1_Anclado_PeopleNet_Direccion`: **control por dirección** del modo
+     anclado (verde si su global ≥ 0). `B2` desglosa por plaza; `B3_Sin_GFH`
+     lista contratos cuyo GFH falta en el maestro (DNI + GFH a añadir).
 
-6. **Recargar Propuestas** con `salidas/recarga_propuestas_<fecha>.xlsx`
-   (incluye filas a 0 para permitir consumos futuros).
+6. **Recargar Propuestas.** Dos opciones (ver
+   [`metodologia_y_conteo.md`](metodologia_y_conteo.md)):
+   - `recarga_propuestas_<fecha>.xlsx` — **modo actual** (desde el corte).
+   - `recarga_anclada_PeopleNet_<fecha>.xlsx` — **modo anclado** (`Contratación
+     − Usados_real − Pendiente`, gasto real de PeopleNet). El recomendado si
+     quieres el disponible alineado con PeopleNet.
 
 7. **Consultar** `salidas/informe_<fecha>.html` (informe web local): un único
    fichero que se abre en el navegador (doble clic), sin internet ni servidor.
@@ -101,5 +115,6 @@ acumulan.
 python -m pytest -q
 ```
 
-Deben pasar las 22 pruebas (fechas, casos críticos e integración) antes de
+Deben pasar las 64 pruebas (fechas, casos críticos, integración, modo anclado)
+antes de
 publicar resultados.
