@@ -114,6 +114,8 @@ class ResultadoConciliacion:
     contratos_post_corte: list[dict] = field(default_factory=list)
     validacion: object = None       # ResultadoValidacion (validación cruzada)
     usados_vs_contratos: list[dict] = field(default_factory=list)
+    anclado_plaza: list[dict] = field(default_factory=list)       # modo anclado a PeopleNet, por plaza
+    anclado_direccion: list[dict] = field(default_factory=list)   # agregado por dirección (control)
 
 
 def _reserva_fin(prop: Propuesta, fecha_limite: date) -> date:
@@ -617,4 +619,91 @@ def conciliar(
             coincidencia_pct=pct,
             estado="OK" if abs(dif) <= max(50, 0.02 * base) else "REVISAR",
         ))
+
+    # 10) modo ANCLADO A PEOPLENET (paralelo al saldo del corte):
+    #   disponible = Contratación − Usados_real(contratos, a fin real) − Pendiente(reservas sin contrato)
+    # El 'usados_real' ya incorpora los cierres (contrato a fin real), así que no
+    # necesita la 'devolución por cierre'. La Contratación (bolsa anual, por
+    # cláusula) se reparte a plaza/dirección con el reparto del corte (postcontrol
+    # + usados a fecha de corte) y se escala para cuadrar por cláusula. El control
+    # relevante es por DIRECCIÓN (que su global quede ≥ 0; una plaza puede ir en
+    # negativo mientras la dirección sume positivo).
+    _ancla_a_peoplenet(res, contratos, bolsa_peoplenet, fecha_corte,
+                       fecha_limite, prioritarias)
     return res
+
+
+def _ancla_a_peoplenet(res, contratos, bolsa_peoplenet, fecha_corte,
+                       fecha_limite, prioritarias):
+    anio_inicio = date(fecha_limite.year, 1, 1)
+
+    def _reparte_2026(c, hasta_alta=None):
+        """Reparte los días 2026 del contrato (a fin real) por división (GFH)."""
+        if c.fecha_inicio is None:
+            return {}
+        if hasta_alta is not None and (c.alta is None or c.alta > hasta_alta):
+            return {}
+        ini = max(c.fecha_inicio, anio_inicio)
+        fin = min(c.fecha_fin or fecha_limite, fecha_limite)
+        if dias_inclusivos(ini, fin) <= 0:
+            return {}
+        reparto, sin_tramo = reparte_dias(ini, fin, c.tramos)
+        if sin_tramo > 0:
+            reparto[c.division or ""] = reparto.get(c.division or "", 0) + sin_tramo
+        return reparto
+
+    usados_now: dict[ClavePlaza, int] = defaultdict(int)
+    usados_cut: dict[ClavePlaza, int] = defaultdict(int)
+    for c in contratos:
+        if c.clausula not in prioritarias:
+            continue
+        for div, dias in _reparte_2026(c).items():
+            usados_now[ClavePlaza(c.id_plaza, div or c.division, c.clausula)] += dias
+        for div, dias in _reparte_2026(c, fecha_corte).items():
+            usados_cut[ClavePlaza(c.id_plaza, div or c.division, c.clausula)] += dias
+
+    # postcontrol y pendiente por clave, desde el detalle ya calculado
+    post: dict[ClavePlaza, int] = defaultdict(int)
+    pend: dict[ClavePlaza, int] = defaultdict(int)
+    nombre_dir: dict[str, str] = {}
+    for f in res.detalle:
+        k = ClavePlaza(f.id_plaza, f.direccion_codigo, f.clausula)
+        post[k] += f.saldo_postcontrol
+        pend[k] += f.reserva_pendiente
+        nombre_dir[f.direccion_codigo] = f.direccion_nombre
+
+    contratacion = {b.clausula: b.dias_contratacion for b in bolsa_peoplenet}
+    claves = set(usados_now) | set(post) | set(pend)
+
+    # peso de reparto por clave = max(0, postcontrol) + usados a fecha de corte
+    peso = {k: max(0, post[k]) + usados_cut.get(k, 0) for k in claves}
+    peso_clau: dict[str, int] = defaultdict(int)
+    for k, w in peso.items():
+        peso_clau[k.clausula] += w
+
+    agg_dir: dict[tuple, dict] = {}
+    for k in sorted(claves, key=lambda x: (x.direccion_codigo, x.id_plaza)):
+        if k.clausula not in prioritarias:
+            continue
+        contro = contratacion.get(k.clausula, 0)
+        w = peso.get(k, 0)
+        wc = peso_clau.get(k.clausula, 0)
+        contro_k = (contro * w / wc) if wc else 0
+        u = usados_now.get(k, 0)
+        p = pend.get(k, 0)
+        disp = round(contro_k - u - p)
+        res.anclado_plaza.append(dict(
+            id_plaza=k.id_plaza, direccion=k.direccion_codigo, clausula=k.clausula,
+            contratacion_plaza=round(contro_k), usados_real=u, pendiente=p,
+            disponible=disp))
+        a = agg_dir.setdefault((k.direccion_codigo, k.clausula), dict(
+            direccion=k.direccion_codigo, direccion_nombre=nombre_dir.get(k.direccion_codigo, ""),
+            clausula=k.clausula, contratacion=0, usados_real=0, pendiente=0, disponible=0))
+        a["contratacion"] += round(contro_k)
+        a["usados_real"] += u
+        a["pendiente"] += p
+        a["disponible"] += disp
+    for a in agg_dir.values():
+        a["estado"] = "ROJO" if a["disponible"] < 0 else "VERDE"
+    res.anclado_direccion = sorted(
+        agg_dir.values(), key=lambda x: (x["clausula"], x["direccion"]))

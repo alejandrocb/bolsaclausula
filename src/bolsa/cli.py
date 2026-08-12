@@ -28,7 +28,7 @@ from .cargas.periodicas import (
 )
 from .config import CONFIG
 from .equivalencias import Equivalencias
-from .exportar import exporta_conciliacion, exporta_recarga
+from .exportar import exporta_conciliacion, exporta_recarga, exporta_recarga_anclada
 from .exportar_web import exporta_informe
 from .importaciones import dedup_movimientos, dedup_propuestas, registra
 from .motor import conciliar
@@ -125,9 +125,11 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
     dir_salida = Path(dir_salida)
     ruta_conc = dir_salida / f"conciliacion_{sello}.xlsx"
     ruta_rec = dir_salida / f"recarga_propuestas_{sello}.xlsx"
+    ruta_rec_pn = dir_salida / f"recarga_anclada_PeopleNet_{sello}.xlsx"
     ruta_web = dir_salida / f"informe_{sello}.html"
     exporta_conciliacion(res, ruta_conc, saldo_inicial, equivalencias, importaciones)
     exporta_recarga(res, ruta_rec)
+    exporta_recarga_anclada(res, ruta_rec_pn)
     # informe HTML local para explorar los datos (contiene DNI -> no publicar)
     exporta_informe(res, ruta_web, fecha=sello)
 
@@ -157,8 +159,16 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
               f" ({v['cobertura_pct']}%)  anómalos={v['movimientos_anomalos']}"
               f"  con diferencia={v['propuestas_con_diferencia']}", file=sys.stderr)
 
+    if res.anclado_direccion:
+        rojas = [a for a in res.anclado_direccion if a["estado"] == "ROJO"]
+        print("\n=== MODO ANCLADO PEOPLENET — control por dirección ===", file=sys.stderr)
+        print(f"  direcciones en ROJO (disponible < 0): {len(rojas)}", file=sys.stderr)
+        for a in rojas:
+            print(f"    {a['clausula']} {a['direccion']}: {a['disponible']}", file=sys.stderr)
+
     print(f"\nConciliación: {ruta_conc}", file=sys.stderr)
     print(f"Recarga:      {ruta_rec}", file=sys.stderr)
+    print(f"Recarga anclada PeopleNet: {ruta_rec_pn}", file=sys.stderr)
     print(f"Informe web:  {ruta_web}  (ábrelo en el navegador)", file=sys.stderr)
     return {"conciliacion": ruta_conc, "recarga": ruta_rec,
             "informe": ruta_web, "resultado": res}

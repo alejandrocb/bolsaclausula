@@ -355,6 +355,27 @@ def exporta_conciliacion(
             ("estado", "Estado"),
         ], res.usados_vs_contratos)
 
+    # B1/B2 Modo ANCLADO A PEOPLENET (disponible = Contratación − Usados_real −
+    # Pendiente). Control por DIRECCIÓN (verde si su global ≥ 0).
+    if res.anclado_direccion:
+        _hoja(wb, "B1_Anclado_PeopleNet_Direccion", [
+            ("clausula", "Cláusula"), ("direccion", "Dir."),
+            ("direccion_nombre", "Dirección"),
+            ("contratacion", "Contratación (reparto)"),
+            ("usados_real", "Usados real (PeopleNet)"),
+            ("pendiente", "Pendiente (reservas)"),
+            ("disponible", "Disponible"), ("estado", "Estado"),
+        ], res.anclado_direccion)
+    if res.anclado_plaza:
+        _hoja(wb, "B2_Anclado_PeopleNet_Plaza", [
+            ("clausula", "Cláusula"), ("direccion", "Dir."),
+            ("id_plaza", "ID Plaza"),
+            ("contratacion_plaza", "Contratación (reparto)"),
+            ("usados_real", "Usados real (PeopleNet)"),
+            ("pendiente", "Pendiente (reservas)"),
+            ("disponible", "Disponible"),
+        ], res.anclado_plaza)
+
     Path(ruta).parent.mkdir(parents=True, exist_ok=True)
     wb.save(ruta)
     return Path(ruta)
@@ -379,6 +400,32 @@ def exporta_recarga(
     for i, f in enumerate(res.detalle, start=2):
         vals = [f.id_plaza, f.descripcion_categoria, f.direccion_codigo,
                 f.clausula, f.saldo_calculado]
+        for j, v in enumerate(vals, start=1):
+            ws.cell(row=i, column=j, value=v)
+    ws.freeze_panes = "A2"
+    Path(ruta).parent.mkdir(parents=True, exist_ok=True)
+    wb.save(ruta)
+    return Path(ruta)
+
+
+def exporta_recarga_anclada(
+    res: ResultadoConciliacion, ruta: str | Path
+) -> Path:
+    """Recarga en modo ANCLADO A PEOPLENET: disponible por plaza =
+    Contratación (reparto del corte) − Usados_real − Pendiente."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Recarga_anclada"
+    columnas = [
+        ("id_plaza", "ID Plaza"), ("direccion", "Dirección"),
+        ("clausula", "Cláusula"), ("disponible", "Saldo para cargar"),
+    ]
+    for j, (_, tit) in enumerate(columnas, start=1):
+        c = ws.cell(row=1, column=j, value=tit)
+        c.font = _CAB
+        c.fill = _FILL_CAB
+    for i, f in enumerate(res.anclado_plaza, start=2):
+        vals = [f["id_plaza"], f["direccion"], f["clausula"], f["disponible"]]
         for j, v in enumerate(vals, start=1):
             ws.cell(row=i, column=j, value=v)
     ws.freeze_panes = "A2"
