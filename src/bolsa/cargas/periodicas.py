@@ -186,7 +186,9 @@ def carga_bolsa_peoplenet(ruta, config=CONFIG) -> list[BolsaPeopleNet]:
     col = m["columnas"]
     fila_cab = int(m.get("fila_cabecera", 2))
     wb = openpyxl.load_workbook(ruta, read_only=True, data_only=True)
-    ws = wb[m["hoja"]]
+    # si la hoja del mapeo no existe (el export la nombra distinto), usa la 1ª
+    hoja = m.get("hoja")
+    ws = wb[hoja] if (hoja and hoja in wb.sheetnames) else wb[wb.sheetnames[0]]
     filas = list(ws.iter_rows(min_row=fila_cab, values_only=True))
     if not filas:
         return []
