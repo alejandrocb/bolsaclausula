@@ -21,6 +21,26 @@ _COLOR = {
     "SIN DATOS": PatternFill("solid", fgColor="D9D9D9"),
 }
 
+# Columnas del saldo inicial 01/01/2026 reconstruido (anclado a PeopleNet)
+_COLS_SALDO_INI_DIR = [
+    ("clausula", "Cláusula"), ("direccion", "Dir."),
+    ("direccion_nombre", "Dirección"),
+    ("saldo_01_01", "Saldo inicial 01/01/2026"),
+    ("usados_corte", "Consumo PeopleNet al corte (02/07)"),
+    ("saldo_corte", "Saldo en el corte (02/07)"),
+    ("usados_desde", "Consumo PeopleNet desde el corte"),
+    ("saldo_actual", "Saldo actual (solo PeopleNet)"),
+]
+_COLS_SALDO_INI_PLAZA = [
+    ("clausula", "Cláusula"), ("direccion", "Dir."),
+    ("direccion_nombre", "Dirección"), ("id_plaza", "ID Plaza"),
+    ("saldo_01_01", "Saldo inicial 01/01/2026"),
+    ("usados_corte", "Consumo PeopleNet al corte (02/07)"),
+    ("saldo_corte", "Saldo en el corte (02/07)"),
+    ("usados_desde", "Consumo PeopleNet desde el corte"),
+    ("saldo_actual", "Saldo actual (solo PeopleNet)"),
+]
+
 
 def _hoja(wb: Workbook, titulo: str, columnas: list[tuple[str, str]], filas: list[dict]):
     ws = wb.create_sheet(titulo[:31])
@@ -381,6 +401,12 @@ def exporta_conciliacion(
             ("num_periodo", "Nº periodo"), ("inicio", "Inicio"), ("fin", "Fin"),
             ("dias", "Días sin división"), ("gfh", "GFH (falta en el maestro)"),
         ], res.anclado_sin_gfh)
+    if res.saldo_ini_direccion:
+        _hoja(wb, "C1_Saldo_01_01_Direccion", _COLS_SALDO_INI_DIR,
+              res.saldo_ini_direccion)
+    if res.saldo_ini_plaza:
+        _hoja(wb, "C2_Saldo_01_01_Plaza", _COLS_SALDO_INI_PLAZA,
+              res.saldo_ini_plaza)
 
     Path(ruta).parent.mkdir(parents=True, exist_ok=True)
     wb.save(ruta)
@@ -435,6 +461,72 @@ def exporta_recarga_anclada(
         for j, v in enumerate(vals, start=1):
             ws.cell(row=i, column=j, value=v)
     ws.freeze_panes = "A2"
+    Path(ruta).parent.mkdir(parents=True, exist_ok=True)
+    wb.save(ruta)
+    return Path(ruta)
+
+
+def exporta_saldo_inicial(res: ResultadoConciliacion, ruta: str | Path) -> Path:
+    """Hoja de cálculo del saldo inicial 01/01/2026 reconstruido (anclado a
+    PeopleNet): pestañas C0 método, C1 por dirección, C2 por plaza."""
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    ws0 = wb.create_sheet("C0_Método")
+    metodo = [
+        ("Saldo inicial 01/01/2026 anclado a PeopleNet", True),
+        ("", False),
+        ("Reconstruye, por plaza y dirección, el saldo a 01/01/2026 de forma que", False),
+        ("en el corte (02/07/2026) coincida EXACTAMENTE con el saldo real", False),
+        ("(postcontrol), y proyecta el saldo actual solo con movimientos de", False),
+        ("PeopleNet (contratos), olvidando las propuestas comprometidas.", False),
+        ("", False),
+        ("Fórmulas por (plaza, dirección, cláusula):", True),
+        ("  Saldo inicial 01/01  = Saldo en el corte + Consumo PeopleNet al corte", False),
+        ("  Saldo en el corte    = postcontrol del 02/07 (coincide por construcción)", False),
+        ("  Saldo actual solo-PN = Saldo en el corte − Consumo PeopleNet desde el corte", False),
+        ("                       = Saldo inicial 01/01 − Consumo PeopleNet total", False),
+        ("", False),
+        ("Consumo PeopleNet = días de cada contrato a su fin real (tope 31/12),", False),
+        ("igual que 'Días Usados' de PeopleNet, repartidos a la división real por", False),
+        ("tramo GFH. El corte de un contrato entre 'al corte' y 'desde el corte' se", False),
+        ("hace por su FECHA DE INICIO (≤ 02/07 = al corte; posterior = desde el", False),
+        ("corte), robusta; no por la fecha de alta reconstruida.", False),
+        ("", False),
+        ("NO incluye las propuestas comprometidas sin contrato (reservas): es la", False),
+        ("foto solo-PeopleNet. El disponible con reservas está en el modo anclado", False),
+        ("(pestañas B1–B3 de la conciliación).", False),
+    ]
+    for txt, negrita in metodo:
+        ws0.append([txt])
+        if negrita:
+            ws0.cell(ws0.max_row, 1).font = Font(bold=True, size=12)
+    ws0.column_dimensions["A"].width = 92
+
+    ws1 = _hoja(wb, "C1_Saldo_01_01_Direccion", _COLS_SALDO_INI_DIR,
+                res.saldo_ini_direccion)
+    ws2 = _hoja(wb, "C2_Saldo_01_01_Plaza", _COLS_SALDO_INI_PLAZA,
+                res.saldo_ini_plaza)
+    # color del saldo actual (última columna)
+    for ws, cols in ((ws1, _COLS_SALDO_INI_DIR), (ws2, _COLS_SALDO_INI_PLAZA)):
+        col_act = len(cols)
+        for i in range(2, ws.max_row + 1):
+            v = ws.cell(i, col_act).value
+            if isinstance(v, (int, float)):
+                ws.cell(i, col_act).fill = _COLOR["ROJO" if v < 0 else "VERDE"]
+    # totales por cláusula al pie de C1
+    ws1.append([])
+    for cl in sorted({r["clausula"] for r in res.saldo_ini_direccion}):
+        filas_cl = [r for r in res.saldo_ini_direccion if r["clausula"] == cl]
+        ws1.append([f"TOTAL {cl}", "", "",
+                    sum(r["saldo_01_01"] for r in filas_cl),
+                    sum(r["usados_corte"] for r in filas_cl),
+                    sum(r["saldo_corte"] for r in filas_cl),
+                    sum(r["usados_desde"] for r in filas_cl),
+                    sum(r["saldo_actual"] for r in filas_cl)])
+        for c in ws1[ws1.max_row]:
+            c.font = Font(bold=True)
+
     Path(ruta).parent.mkdir(parents=True, exist_ok=True)
     wb.save(ruta)
     return Path(ruta)

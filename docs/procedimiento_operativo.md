@@ -115,6 +115,7 @@ acumulan.
 python -m pytest -q
 ```
 
-Deben pasar las 64 pruebas (fechas, casos críticos, integración, modo anclado)
+Deben pasar las 68 pruebas (fechas, casos críticos, integración, modo anclado,
+saldo inicial 01/01)
 antes de
 publicar resultados.

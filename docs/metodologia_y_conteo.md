@@ -170,6 +170,45 @@ verdes. Ese es el número que responde a *«¿nos hemos pasado?»*.
 
 ---
 
+## 5bis. Saldo inicial 01/01/2026 reconstruido (solo PeopleNet)
+
+Además de los dos modos, la herramienta reconstruye **hacia atrás** un saldo a
+**01/01/2026** por plaza y dirección, con dos exigencias:
+
+1. que en el **corte (02/07/2026)** coincida **exactamente** con el saldo real
+   (el `postcontrol`), y
+2. que muestre lo que **quedaría hoy** solo con los **movimientos de PeopleNet**
+   (contratos), *olvidando las propuestas comprometidas* (se añaden después).
+
+Por cada (plaza, dirección, cláusula):
+
+```
+Saldo inicial 01/01  = Saldo en el corte + Consumo PeopleNet AL corte
+Saldo en el corte    = postcontrol(02/07)          (coincide por construcción)
+Saldo actual solo-PN = Saldo en el corte − Consumo PeopleNet DESDE el corte
+                     = Saldo inicial 01/01 − Consumo PeopleNet total
+```
+
+- **Consumo PeopleNet** = cada contrato a su **fin real** (tope 31/12),
+  repartido a la división real por tramo GFH — igual que el `Días Usados`.
+- El reparto de un contrato entre *al corte* / *desde el corte* se hace por su
+  **fecha de inicio** (≤ 02/07 = al corte; posterior = desde el corte). Es
+  **robusto**: no depende de la fecha de *alta* reconstruida, que desplazaría
+  contratos antiguos (con este dato, ~9.000 días N91c y ~17.500 S9b1a se
+  clasificaban mal como "posteriores").
+- El consumo previo al corte **ya está dentro del postcontrol**, así que no se
+  vuelve a restar: para un contrato íntegramente previo, el *saldo actual* es el
+  del corte.
+- **No** incluye las reservas sin contrato (propuestas comprometidas): es la
+  **foto solo-PeopleNet**. El disponible con reservas es el modo anclado (B1–B3).
+
+Comprobación automática: la columna *Saldo en el corte* suma **exactamente** el
+`postcontrol` por cláusula (prueba `test_saldo_inicial`). El saldo inicial
+reconstruido queda muy cerca de la bolsa anual (N91c ~124.000 sobre 127.686;
+S9b1a ~233.000 sobre 240.069): la diferencia es el margen aún **no repartido**
+a plaza. Salidas: pestañas `C1_Saldo_01_01_Direccion` y `C2_..._Plaza` de la
+conciliación, y el fichero `saldo_inicial_01_01_2026_<fecha>.xlsx`.
+
 ## 6. Controles que se ejecutan en cada carga
 
 | Pestaña / salida | Qué controla |
@@ -179,6 +218,7 @@ verdes. Ese es el número que responde a *«¿nos hemos pasado?»*.
 | `B1_Anclado_PeopleNet_Direccion` | Disponible anclado por **dirección** (verde si su global ≥ 0). |
 | `B2_..._Plaza` | Desglose por plaza del modo anclado. |
 | `B3_Sin_GFH` | Contratos cuyo GFH falta en el maestro de Divisiones (DNI + GFH a añadir). |
+| `C1`/`C2` | Saldo inicial 01/01/2026 reconstruido (cuadra con el corte); saldo actual solo-PeopleNet. |
 | `A1`–`A12` | Reservas, cierres, cláusula/dirección distinta, coherencia del enlace, etc. |
 
 ---

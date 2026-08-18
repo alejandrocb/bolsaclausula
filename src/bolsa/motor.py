@@ -117,6 +117,8 @@ class ResultadoConciliacion:
     anclado_plaza: list[dict] = field(default_factory=list)       # modo anclado a PeopleNet, por plaza
     anclado_direccion: list[dict] = field(default_factory=list)   # agregado por dirección (control)
     anclado_sin_gfh: list[dict] = field(default_factory=list)     # contratos con GFH no mapeado (DNI, plaza, GFH)
+    saldo_ini_plaza: list[dict] = field(default_factory=list)     # saldo 01/01 reconstruido por plaza
+    saldo_ini_direccion: list[dict] = field(default_factory=list) # saldo 01/01 reconstruido por dirección
 
 
 def _reserva_fin(prop: Propuesta, fecha_limite: date) -> date:
@@ -631,7 +633,90 @@ def conciliar(
     # negativo mientras la dirección sume positivo).
     _ancla_a_peoplenet(res, contratos, bolsa_peoplenet, fecha_corte,
                        fecha_limite, prioritarias)
+
+    # 11) SALDO INICIAL 01/01/2026 reconstruido (anclado a PeopleNet):
+    #   se reconstruye hacia atrás el saldo a 01/01 de forma que en el corte
+    #   coincida EXACTAMENTE con el saldo real (postcontrol), y se proyecta el
+    #   saldo actual solo con movimientos de PeopleNet (contratos), sin las
+    #   propuestas comprometidas. Ver docs/metodologia_y_conteo.md §Saldo inicial.
+    _saldo_inicial_2026(res, contratos, fecha_corte, fecha_limite, prioritarias)
     return res
+
+
+def _reparte_contrato_2026(c, fecha_limite):
+    """Reparte los días 2026 del contrato (a fin real, tope 31/12) por división
+    (GFH). Los días sin tramo GFH se atribuyen al GFH vigente (tramo más tardío)."""
+    if c.fecha_inicio is None:
+        return {}
+    anio_inicio = date(fecha_limite.year, 1, 1)
+    ini = max(c.fecha_inicio, anio_inicio)
+    fin = min(c.fecha_fin or fecha_limite, fecha_limite)
+    if dias_inclusivos(ini, fin) <= 0:
+        return {}
+    reparto, sin_tramo = reparte_dias(ini, fin, c.tramos)
+    if sin_tramo > 0:
+        fb = ""
+        if c.tramos:
+            ult = max(c.tramos, key=lambda t: (t.fecha_inicio or date.min))
+            fb = ult.division or ""
+        reparto[fb] = reparto.get(fb, 0) + sin_tramo
+    return reparto
+
+
+def _saldo_inicial_2026(res, contratos, fecha_corte, fecha_limite, prioritarias):
+    """Reconstruye el saldo inicial a 01/01/2026 por plaza y dirección.
+
+        saldo_01_01 = postcontrol(corte) + consumo PeopleNet al corte
+        saldo_corte = postcontrol                (coincide por construcción)
+        saldo_actual = postcontrol − consumo PeopleNet desde el corte
+                     = saldo_01_01 − consumo PeopleNet total
+
+    El consumo PeopleNet es cada contrato a su fin real (igual que 'Días
+    Usados'). El corte de un contrato entre 'al corte' y 'desde el corte' se
+    hace por su FECHA DE INICIO (≤ corte = al corte; posterior = desde el
+    corte), robusta, no por la fecha de alta reconstruida. NO incluye las
+    propuestas comprometidas sin contrato (es la foto solo-PeopleNet).
+    """
+    usados_cut: dict[ClavePlaza, int] = defaultdict(int)
+    usados_post: dict[ClavePlaza, int] = defaultdict(int)
+    for c in contratos:
+        if c.clausula not in prioritarias:
+            continue
+        pre = c.fecha_inicio is not None and c.fecha_inicio <= fecha_corte
+        destino = usados_cut if pre else usados_post
+        for div, dias in _reparte_contrato_2026(c, fecha_limite).items():
+            destino[ClavePlaza(c.id_plaza, div, c.clausula)] += dias
+
+    post: dict[ClavePlaza, int] = defaultdict(int)
+    nombre_dir: dict[str, str] = {}
+    for f in res.detalle:
+        k = ClavePlaza(f.id_plaza, f.direccion_codigo, f.clausula)
+        post[k] += f.saldo_postcontrol
+        nombre_dir[f.direccion_codigo] = f.direccion_nombre
+
+    claves = {k for k in (set(post) | set(usados_cut) | set(usados_post))
+              if k.clausula in prioritarias}
+    agg: dict[tuple, dict] = {}
+    for k in sorted(claves, key=lambda x: (x.clausula, x.direccion_codigo, x.id_plaza)):
+        p = post.get(k, 0)
+        uc = usados_cut.get(k, 0)
+        up = usados_post.get(k, 0)
+        fila = dict(
+            clausula=k.clausula, direccion=k.direccion_codigo,
+            direccion_nombre=nombre_dir.get(k.direccion_codigo, ""),
+            id_plaza=k.id_plaza, saldo_01_01=p + uc, usados_corte=uc,
+            saldo_corte=p, usados_desde=up, saldo_actual=p - up)
+        res.saldo_ini_plaza.append(fila)
+        a = agg.setdefault((k.clausula, k.direccion_codigo), dict(
+            clausula=k.clausula, direccion=k.direccion_codigo,
+            direccion_nombre=nombre_dir.get(k.direccion_codigo, ""), id_plaza="",
+            saldo_01_01=0, usados_corte=0, saldo_corte=0, usados_desde=0,
+            saldo_actual=0))
+        for campo in ("saldo_01_01", "usados_corte", "saldo_corte",
+                      "usados_desde", "saldo_actual"):
+            a[campo] += fila[campo]
+    res.saldo_ini_direccion = sorted(
+        agg.values(), key=lambda x: (x["clausula"], x["direccion"]))
 
 
 def _ancla_a_peoplenet(res, contratos, bolsa_peoplenet, fecha_corte,

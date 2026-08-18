@@ -61,6 +61,10 @@ Genera en `salidas/`:
   corte): ID Plaza, categoría, dirección, cláusula, saldo para cargar.
 - **`recarga_anclada_PeopleNet_<fecha>.xlsx`** — recarga del **modo anclado a
   PeopleNet** (`Contratación − Usados_real − Pendiente`).
+- **`saldo_inicial_01_01_2026_<fecha>.xlsx`** — **saldo inicial a 01/01/2026**
+  reconstruido por plaza y dirección (anclado a PeopleNet): cuadra con el corte
+  del 02/07 y proyecta el saldo actual solo con movimientos de PeopleNet
+  (sin las propuestas comprometidas). Pestañas `C0`/`C1`/`C2`.
 - **`informe_<fecha>.html`** — informe web local (contiene DNI, **no se
   publica**) con las vistas Semáforo, Por Dirección, **Anclado PeopleNet**,
   Por DNI y Por Propuesta.
@@ -84,7 +88,7 @@ La herramienta produce **dos cifras de disponible**, en paralelo:
 ## Pruebas
 
 ```bash
-python -m pytest -q        # 64 pruebas
+python -m pytest -q        # 68 pruebas
 ```
 
 Cubren: conteo inclusivo y topes de fecha; enlace propuesta↔contrato; los

@@ -28,7 +28,12 @@ from .cargas.periodicas import (
 )
 from .config import CONFIG
 from .equivalencias import Equivalencias
-from .exportar import exporta_conciliacion, exporta_recarga, exporta_recarga_anclada
+from .exportar import (
+    exporta_conciliacion,
+    exporta_recarga,
+    exporta_recarga_anclada,
+    exporta_saldo_inicial,
+)
 from .exportar_web import exporta_informe
 from .importaciones import dedup_movimientos, dedup_propuestas, registra
 from .motor import conciliar
@@ -126,10 +131,12 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
     ruta_conc = dir_salida / f"conciliacion_{sello}.xlsx"
     ruta_rec = dir_salida / f"recarga_propuestas_{sello}.xlsx"
     ruta_rec_pn = dir_salida / f"recarga_anclada_PeopleNet_{sello}.xlsx"
+    ruta_saldo_ini = dir_salida / f"saldo_inicial_01_01_2026_{sello}.xlsx"
     ruta_web = dir_salida / f"informe_{sello}.html"
     exporta_conciliacion(res, ruta_conc, saldo_inicial, equivalencias, importaciones)
     exporta_recarga(res, ruta_rec)
     exporta_recarga_anclada(res, ruta_rec_pn)
+    exporta_saldo_inicial(res, ruta_saldo_ini)
     # informe HTML local para explorar los datos (contiene DNI -> no publicar)
     exporta_informe(res, ruta_web, fecha=sello)
 
@@ -166,9 +173,19 @@ def ejecuta(dir_inicial: Path, dir_periodicas: Path, dir_salida: Path,
         for a in rojas:
             print(f"    {a['clausula']} {a['direccion']}: {a['disponible']}", file=sys.stderr)
 
+    if res.saldo_ini_direccion:
+        print("\n=== SALDO INICIAL 01/01/2026 (anclado a PeopleNet) ===", file=sys.stderr)
+        for cl in sorted({r["clausula"] for r in res.saldo_ini_direccion}):
+            fs = [r for r in res.saldo_ini_direccion if r["clausula"] == cl]
+            print(f"  {cl}: 01/01={sum(r['saldo_01_01'] for r in fs)} "
+                  f"corte={sum(r['saldo_corte'] for r in fs)} "
+                  f"actual_solo_PN={sum(r['saldo_actual'] for r in fs)}",
+                  file=sys.stderr)
+
     print(f"\nConciliación: {ruta_conc}", file=sys.stderr)
     print(f"Recarga:      {ruta_rec}", file=sys.stderr)
     print(f"Recarga anclada PeopleNet: {ruta_rec_pn}", file=sys.stderr)
+    print(f"Saldo inicial 01/01/2026:  {ruta_saldo_ini}", file=sys.stderr)
     print(f"Informe web:  {ruta_web}  (ábrelo en el navegador)", file=sys.stderr)
     return {"conciliacion": ruta_conc, "recarga": ruta_rec,
             "informe": ruta_web, "resultado": res}
