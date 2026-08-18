@@ -51,13 +51,18 @@ def lee_ods(ruta, hoja: str | None = None) -> list[list[str]]:
     """Devuelve las filas (lista de celdas de texto) de una hoja ODS."""
     with zipfile.ZipFile(ruta) as z:
         root = ET.fromstring(z.read("content.xml").decode("utf-8"))
+    tablas = list(root.iter(f"{{{_NS_T}}}table"))
     tabla = None
-    for t in root.iter(f"{{{_NS_T}}}table"):
+    for t in tablas:
         if hoja is None or t.get(f"{{{_NS_T}}}name") == hoja:
             tabla = t
             break
+    # si la hoja pedida no existe, usamos la primera (el export puede
+    # nombrarla distinto), sin fallar.
+    if tabla is None and tablas:
+        tabla = tablas[0]
     if tabla is None:
-        raise ValueError(f"Hoja '{hoja}' no encontrada en {ruta}")
+        raise ValueError(f"No hay hojas en {ruta}")
     filas: list[list[str]] = []
     for fila in tabla.iter(f"{{{_NS_T}}}table-row"):
         celdas: list[str] = []
@@ -81,7 +86,9 @@ def lee_xlsx(ruta, hoja: str | None = None) -> list[list]:
     wb = openpyxl.load_workbook(
         io.BytesIO(Path(ruta).read_bytes()), read_only=True, data_only=True
     )
-    ws = wb[hoja] if hoja else wb[wb.sheetnames[0]]
+    # si la hoja pedida no existe (el export puede llamarla distinto:
+    # 'Query', 'Export', 'Hoja1'…) usamos la primera, sin fallar.
+    ws = wb[hoja] if (hoja and hoja in wb.sheetnames) else wb[wb.sheetnames[0]]
     filas = []
     for fila in ws.iter_rows(values_only=True):
         if fila is None or all(c is None for c in fila):
